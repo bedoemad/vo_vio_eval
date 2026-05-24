@@ -1,0 +1,59 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.save
+*.pynano
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Generated review bundles
+vo_plot_review_bundle/
+
+# Backup files
+*.backup.json
+*_backup.py
+
+# Local user-specific paths
+configs/local_paths.json
+
+# Datasets
+data/euroc/
+data/kitti/
+datasets/
+*.bag
+
+# Results and generated outputs
+results/
+*.zip
+
+# Large model files
+*.pth
+*.pt
+*.ckpt
+*.onnx
+
+# Logs
+*.log
+stdout.log
+stderr.log
+
+# Build artifacts
+build/
+dist/
+
+# Environment files
+.env
+.env.*
+
+# OS / editors
+.DS_Store
+.vscode/
+.idea/

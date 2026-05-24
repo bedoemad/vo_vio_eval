@@ -1,0 +1,79 @@
+{
+  "euroc_orbslam3": {
+    "methods": ["orbslam3_mono"],
+    "sequences": [
+      "euroc_mh01",
+      "euroc_mh02",
+      "euroc_mh03",
+      "euroc_mh04",
+      "euroc_mh05"
+    ]
+  },
+  "kitti_orbslam3": {
+    "methods": ["orbslam3_kitti_mono"],
+    "sequences": [
+      "kitti_00",
+      "kitti_01",
+      "kitti_02",
+      "kitti_03",
+      "kitti_04",
+      "kitti_05",
+      "kitti_06",
+      "kitti_07",
+      "kitti_08",
+      "kitti_09"
+    ]
+  },
+  "dpvo_euroc": {
+  "methods": ["dpvo_euroc"],
+  "sequences": [
+    "euroc_mh01",
+    "euroc_mh02",
+    "euroc_mh03",
+    "euroc_mh04",
+    "euroc_mh05"
+  ]
+},
+"dpvo_kitti": {
+  "methods": ["dpvo_kitti"],
+  "sequences": [
+    "kitti_00",
+    "kitti_01",
+    "kitti_02",
+    "kitti_03",
+    "kitti_04",
+    "kitti_05",
+    "kitti_06",
+    "kitti_07",
+    "kitti_08",
+    "kitti_09"
+  ]
+},
+  "all_orbslam3": {
+    "methods": [
+      "orbslam3_mono",
+      "orbslam3_kitti_mono"
+    ],
+    "sequences": [
+      "euroc_mh01",
+      "euroc_mh02",
+      "euroc_mh03",
+      "euroc_mh04",
+      "euroc_mh05",
+      "kitti_00",
+      "kitti_01",
+      "kitti_02",
+      "kitti_03",
+      "kitti_04",
+      "kitti_05",
+      "kitti_06",
+      "kitti_07",
+      "kitti_08",
+      "kitti_09"
+    ]
+  },
+"example_adapter_test": {
+  "methods": ["example_adapter"],
+  "sequences": ["euroc_mh01"]
+}
+}

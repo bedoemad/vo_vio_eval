@@ -1,0 +1,29 @@
+{
+  "methods": [
+    {
+      "name": "example_adapter",
+      "command_template": "python adapters/example_adapter.py --sequence {sequence_path} --groundtruth {groundtruth_path} --output {output_path}",
+      "output_trajectory": "{output_path}"
+    },
+    {
+      "name": "orbslam3_mono",
+      "command_template": "bash examples/run_orbslam3_mono.sh {sequence_name} {output_path}",
+      "output_trajectory": "{output_path}"
+    },
+    {
+      "name": "orbslam3_kitti_mono",
+      "command_template": "bash examples/run_orbslam3_kitti_mono.sh {sequence_name} {sequence_path} {output_path}",
+      "output_trajectory": "{output_path}"
+    },
+    {
+      "name": "dpvo_euroc",
+      "command_template": "python adapters/run_dpvo_euroc.py --sequence {sequence_path} --output {output_path}",
+      "output_trajectory": "{output_path}"
+    },
+    {
+      "name": "dpvo_kitti",
+      "command_template": "python adapters/run_dpvo_kitti.py --sequence {sequence_path} --output {output_path}",
+      "output_trajectory": "{output_path}"
+    }
+  ]
+}

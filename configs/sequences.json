@@ -1,0 +1,110 @@
+{
+  "sequences": [
+    {
+      "name": "euroc_mh01",
+      "dataset": "EuRoC",
+      "path": "${EUROC_ROOT}/MH_01_easy/mav0/cam0/data",
+      "groundtruth": "${EUROC_ROOT}/MH_01_easy/mav0/state_groundtruth_estimate0/data_tum.txt",
+      "camera_topic_or_folder": "cam0"
+    },
+    {
+      "name": "euroc_mh02",
+      "dataset": "EuRoC",
+      "path": "${EUROC_ROOT}/MH_02_easy/mav0/cam0/data",
+      "groundtruth": "${EUROC_ROOT}/MH_02_easy/mav0/state_groundtruth_estimate0/data_tum.txt",
+      "camera_topic_or_folder": "cam0"
+    },
+    {
+      "name": "euroc_mh03",
+      "dataset": "EuRoC",
+      "path": "${EUROC_ROOT}/MH_03_medium/mav0/cam0/data",
+      "groundtruth": "${EUROC_ROOT}/MH_03_medium/mav0/state_groundtruth_estimate0/data_tum.txt",
+      "camera_topic_or_folder": "cam0"
+    },
+    {
+      "name": "euroc_mh04",
+      "dataset": "EuRoC",
+      "path": "${EUROC_ROOT}/MH_04_difficult/mav0/cam0/data",
+      "groundtruth": "${EUROC_ROOT}/MH_04_difficult/mav0/state_groundtruth_estimate0/data_tum.txt",
+      "camera_topic_or_folder": "cam0"
+    },
+    {
+      "name": "euroc_mh05",
+      "dataset": "EuRoC",
+      "path": "${EUROC_ROOT}/MH_05_difficult/mav0/cam0/data",
+      "groundtruth": "${EUROC_ROOT}/MH_05_difficult/mav0/state_groundtruth_estimate0/data_tum.txt",
+      "camera_topic_or_folder": "cam0"
+    },
+
+    {
+      "name": "kitti_00",
+      "dataset": "KITTI",
+      "path": "${KITTI_COLOR_ROOT}/sequences/00",
+      "groundtruth": "${PROJECT_ROOT}/data/kitti/poses/00_tum.txt",
+      "camera_topic_or_folder": "image_2"
+    },
+    {
+      "name": "kitti_01",
+      "dataset": "KITTI",
+      "path": "${KITTI_COLOR_ROOT}/sequences/01",
+      "groundtruth": "${PROJECT_ROOT}/data/kitti/poses/01_tum.txt",
+      "camera_topic_or_folder": "image_2"
+    },
+    {
+      "name": "kitti_02",
+      "dataset": "KITTI",
+      "path": "${KITTI_COLOR_ROOT}/sequences/02",
+      "groundtruth": "${PROJECT_ROOT}/data/kitti/poses/02_tum.txt",
+      "camera_topic_or_folder": "image_2"
+    },
+    {
+      "name": "kitti_03",
+      "dataset": "KITTI",
+      "path": "${KITTI_COLOR_ROOT}/sequences/03",
+      "groundtruth": "${PROJECT_ROOT}/data/kitti/poses/03_tum.txt",
+      "camera_topic_or_folder": "image_2"
+    },
+    {
+      "name": "kitti_04",
+      "dataset": "KITTI",
+      "path": "${KITTI_COLOR_ROOT}/sequences/04",
+      "groundtruth": "${PROJECT_ROOT}/data/kitti/poses/04_tum.txt",
+      "camera_topic_or_folder": "image_2"
+    },
+    {
+      "name": "kitti_05",
+      "dataset": "KITTI",
+      "path": "${KITTI_COLOR_ROOT}/sequences/05",
+      "groundtruth": "${PROJECT_ROOT}/data/kitti/poses/05_tum.txt",
+      "camera_topic_or_folder": "image_2"
+    },
+    {
+      "name": "kitti_06",
+      "dataset": "KITTI",
+      "path": "${KITTI_COLOR_ROOT}/sequences/06",
+      "groundtruth": "${PROJECT_ROOT}/data/kitti/poses/06_tum.txt",
+      "camera_topic_or_folder": "image_2"
+    },
+    {
+      "name": "kitti_07",
+      "dataset": "KITTI",
+      "path": "${KITTI_COLOR_ROOT}/sequences/07",
+      "groundtruth": "${PROJECT_ROOT}/data/kitti/poses/07_tum.txt",
+      "camera_topic_or_folder": "image_2"
+    },
+    {
+      "name": "kitti_08",
+      "dataset": "KITTI",
+      "path": "${KITTI_COLOR_ROOT}/sequences/08",
+      "groundtruth": "${PROJECT_ROOT}/data/kitti/poses/08_tum.txt",
+      "camera_topic_or_folder": "image_2"
+    },
+    {
+      "name": "kitti_09",
+      "dataset": "KITTI",
+      "path": "${KITTI_COLOR_ROOT}/sequences/09",
+      "groundtruth": "${PROJECT_ROOT}/data/kitti/poses/09_tum.txt",
+      "camera_topic_or_folder": "image_2"
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "EUROC_ROOT": "/path/to/euroc",
+  "KITTI_COLOR_ROOT": "/path/to/data_odometry_color/dataset",
+  "KITTI_POSES_ROOT": "/path/to/data_odometry_poses/dataset/poses",
+  "ORB_SLAM3_ROOT": "/path/to/ORB_SLAM3",
+  "DPVO_ROOT": "/path/to/DPVO"
+}
