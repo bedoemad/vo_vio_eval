@@ -169,10 +169,10 @@ def main() -> None:
     if args.metrics:
         run_metrics_if_requested(sequence, result)
 
-    summary_path = results_root / "summary_runs.json"
-    save_json(summary_path, {"runs": [asdict(result)]})
+    latest_summary_path = results_root / "latest_run_summary.json"
+    save_json(latest_summary_path, {"latest_run": asdict(result)})
 
-    print(f"Saved summary to {summary_path}")
+    print(f"Saved latest run summary to {latest_summary_path}")
 
 
 if __name__ == "__main__":
