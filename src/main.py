@@ -2,78 +2,23 @@ from __future__ import annotations
 
 import argparse
 import json
-from dataclasses import dataclass, asdict, is_dataclass
+from dataclasses import asdict
 from pathlib import Path
-from typing import Optional, List, Dict, Any
 
-from config_utils import load_json, resolve_sequence_paths
+from config import (
+    MethodConfig,
+    RunResult,
+    SequenceConfig,
+    dict_to_run_result,
+    find_method,
+    find_sequence,
+    load_methods_config,
+    load_sequences_config,
+    object_to_dict,
+)
 from method_runner import MethodRunner
 from metrics import run_evo_ape, run_evo_rpe
-
-
-@dataclass
-class MethodConfig:
-    name: str
-    command_template: str
-    output_trajectory: str
-
-
-@dataclass
-class SequenceConfig:
-    name: str
-    dataset: str
-    path: str
-    groundtruth: str
-    camera_topic_or_folder: Optional[str] = None
-    imu_path: Optional[str] = None
-
-
-@dataclass
-class RunResult:
-    method: str
-    sequence: str
-    success: bool
-    runtime_sec: float
-    peak_memory_mb: float
-    avg_memory_mb: float
-    result_dir: str
-    predicted_trajectory: Optional[str]
-    error_message: Optional[str] = None
-
-
-def ensure_dir(path: Path) -> None:
-    path.mkdir(parents=True, exist_ok=True)
-
-
-def save_json(path: Path, data: Dict[str, Any]) -> None:
-    ensure_dir(path.parent)
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2)
-
-
-def object_to_dict(obj):
-    if is_dataclass(obj):
-        return asdict(obj)
-    if isinstance(obj, dict):
-        return obj
-    if hasattr(obj, "__dict__"):
-        return dict(obj.__dict__)
-    raise TypeError(f"Cannot convert object to dict: {type(obj)}")
-
-
-def dict_to_run_result(data: Dict[str, Any]) -> RunResult:
-    return RunResult(
-        method=data["method"],
-        sequence=data["sequence"],
-        success=bool(data["success"]),
-        runtime_sec=float(data.get("runtime_sec", 0.0)),
-        peak_memory_mb=float(data.get("peak_memory_mb", 0.0)),
-        avg_memory_mb=float(data.get("avg_memory_mb", 0.0)),
-        result_dir=str(data["result_dir"]),
-        predicted_trajectory=data.get("predicted_trajectory"),
-        error_message=data.get("error_message"),
-    )
-
+from utils import ensure_dir, save_json
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -128,42 +73,6 @@ def parse_args() -> argparse.Namespace:
     )
 
     return parser.parse_args()
-
-
-def load_methods_config(path: str) -> List[MethodConfig]:
-    data = load_json(path)
-    return [MethodConfig(**m) for m in data["methods"]]
-
-
-def load_sequences_config(path: str) -> List[SequenceConfig]:
-    data = load_json(path)
-
-    sequences = []
-
-    for seq in data["sequences"]:
-        resolved = resolve_sequence_paths(seq)
-        sequences.append(SequenceConfig(**resolved))
-
-    return sequences
-
-
-def find_method(methods: List[MethodConfig], name: str) -> MethodConfig:
-    for method in methods:
-        if method.name == name:
-            return method
-
-    available = [m.name for m in methods]
-    raise ValueError(f"Method not found: {name}. Available methods: {available}")
-
-
-def find_sequence(sequences: List[SequenceConfig], name: str) -> SequenceConfig:
-    for sequence in sequences:
-        if sequence.name == name:
-            return sequence
-
-    available = [s.name for s in sequences]
-    raise ValueError(f"Sequence not found: {name}. Available sequences: {available}")
-
 
 def make_skip_run_result(
     method: MethodConfig,
