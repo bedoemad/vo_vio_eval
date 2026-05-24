@@ -532,8 +532,12 @@ motion      generate motion-condition files
 diagnose    run generic method-agnostic failure diagnostics
 plot        regenerate plots
 report      generate HTML report
-```
+``` 
+The diagnostic stage supports configurable timestamp matching tolerance:
 
+```bash
+python src/run_generic_failure_diagnostics.py --timestamp-tolerance 0.05
+```
 ---
 
 ## 13. Quickstart
