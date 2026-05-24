@@ -42,8 +42,14 @@ The framework computes:
 - Absolute Pose Error (APE)
 - Relative Pose Error (RPE)
 - APE normalized by trajectory length
+- Sim(3)-aligned APE/RPE with scale correction
+- SE(3)-aligned APE/RPE without scale correction
 
 APE/RPE are computed using `evo`.
+
+Sim(3) metrics are useful for monocular VO trajectory-shape comparison because monocular scale can be ambiguous.
+
+SE(3) metrics are useful for deployment-oriented metric-scale evaluation because they do not correct scale.
 
 ---
 
@@ -722,8 +728,10 @@ results/dpvo_kitti/kitti_04/
 ├── stdout.log
 ├── stderr.log
 └── metrics/
-    ├── ape_results.zip
-    └── rpe_results.zip
+    ├── ape_sim3_results.zip
+    ├── rpe_sim3_results.zip
+    ├── ape_se3_results.zip
+    └── rpe_se3_results.zip
 ```
 
 The main combined summary is:
@@ -944,6 +952,20 @@ The wrappers run ORB-SLAM3 and convert/copy the final trajectory into the framew
 ---
 
 ## 25. Interpretation Notes
+
+### Sim(3) vs SE(3) Metrics
+
+For monocular VO, scale may be ambiguous. Therefore, the framework reports Sim(3)-aligned metrics with scale correction to compare trajectory shape.
+
+For deployment-oriented evaluation, the framework also reports SE(3)-aligned metrics without scale correction. These better reflect whether the method preserves metric scale in practical use.
+
+In the summary tables, legacy columns such as `ape_rmse_m` and `rpe_rmse_m` correspond to the Sim(3) metrics for backward compatibility. The explicit columns are:
+
+```text
+ape_sim3_rmse_m
+rpe_sim3_rmse_m
+ape_se3_rmse_m
+rpe_se3_rmse_m
 
 ### Raw Runtime
 
