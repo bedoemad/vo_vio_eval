@@ -109,21 +109,38 @@ def run_metrics_if_requested(sequence: SequenceConfig, result: RunResult) -> Non
     metrics_dir = Path(result.result_dir) / "metrics"
     ensure_dir(metrics_dir)
 
-    ape = run_evo_ape(
+    ape_sim3 = run_evo_ape(
         sequence.groundtruth,
         result.predicted_trajectory,
         metrics_dir,
+        mode="sim3",
     )
 
-    rpe = run_evo_rpe(
+    rpe_sim3 = run_evo_rpe(
         sequence.groundtruth,
         result.predicted_trajectory,
         metrics_dir,
+        mode="sim3",
     )
 
-    print(f"APE result: {ape}")
-    print(f"RPE result: {rpe}")
+    ape_se3 = run_evo_ape(
+        sequence.groundtruth,
+        result.predicted_trajectory,
+        metrics_dir,
+        mode="se3",
+    )
 
+    rpe_se3 = run_evo_rpe(
+        sequence.groundtruth,
+        result.predicted_trajectory,
+        metrics_dir,
+        mode="se3",
+    )
+
+    print(f"APE Sim(3) result: {ape_sim3}")
+    print(f"RPE Sim(3) result: {rpe_sim3}")
+    print(f"APE SE(3) result: {ape_se3}")
+    print(f"RPE SE(3) result: {rpe_se3}")
 
 def main() -> None:
     args = parse_args()

@@ -115,8 +115,20 @@ for path in Path("results").glob("*/*/run_result.json"):
         r = json.load(f)
 
     result_dir = Path(r["result_dir"])
-    ape_zip = result_dir / "metrics" / "ape_results.zip"
-    rpe_zip = result_dir / "metrics" / "rpe_results.zip"
+    ape_sim3_zip = result_dir / "metrics" / "ape_sim3_results.zip"
+    rpe_sim3_zip = result_dir / "metrics" / "rpe_sim3_results.zip"
+    ape_se3_zip = result_dir / "metrics" / "ape_se3_results.zip"
+    rpe_se3_zip = result_dir / "metrics" / "rpe_se3_results.zip"
+
+    # Backward compatibility with older runs.
+    old_ape_zip = result_dir / "metrics" / "ape_results.zip"
+    old_rpe_zip = result_dir / "metrics" / "rpe_results.zip"
+
+    if not ape_sim3_zip.exists() and old_ape_zip.exists():
+        ape_sim3_zip = old_ape_zip
+
+    if not rpe_sim3_zip.exists() and old_rpe_zip.exists():
+        rpe_sim3_zip = old_rpe_zip
 
     sequence = r["sequence"]
     seq_cfg = sequence_map.get(sequence)
@@ -126,8 +138,14 @@ for path in Path("results").glob("*/*/run_result.json"):
     traj_length = trajectory_length_m(gt_path) if gt_path else None
     num_frames = count_frames(seq_cfg) if seq_cfg else None
 
-    ape_rmse = extract_rmse_from_evo_zip(ape_zip)
-    rpe_rmse = extract_rmse_from_evo_zip(rpe_zip)
+    ape_sim3_rmse = extract_rmse_from_evo_zip(ape_sim3_zip)
+    rpe_sim3_rmse = extract_rmse_from_evo_zip(rpe_sim3_zip)
+    ape_se3_rmse = extract_rmse_from_evo_zip(ape_se3_zip)
+    rpe_se3_rmse = extract_rmse_from_evo_zip(rpe_se3_zip)
+
+    # Keep legacy column names mapped to Sim(3) so existing plots/tables still work.
+    ape_rmse = ape_sim3_rmse
+    rpe_rmse = rpe_sim3_rmse
 
     runtime = r.get("runtime_sec")
 
@@ -163,6 +181,10 @@ for path in Path("results").glob("*/*/run_result.json"):
         "runtime_per_meter_sec": runtime_per_meter,
         "ape_rmse_m": ape_rmse,
         "rpe_rmse_m": rpe_rmse,
+        "ape_sim3_rmse_m": ape_sim3_rmse,
+        "rpe_sim3_rmse_m": rpe_sim3_rmse,
+        "ape_se3_rmse_m": ape_se3_rmse,
+        "rpe_se3_rmse_m": rpe_se3_rmse,
         "ape_rmse_percent_of_path": (
             ape_rmse / traj_length * 100
             if ape_rmse is not None and traj_length
