@@ -1,8 +1,10 @@
+import argparse
 import json
 from pathlib import Path
 from config_utils import load_sequences, resolve_sequence_paths
 import numpy as np
 import pandas as pd
+
 
 
 CONFIG_PATH = Path("configs/sequences.json")
@@ -186,7 +188,7 @@ def process_run(run, sequence_map):
     visual = pd.read_csv(visual_path)
     motion = pd.read_csv(motion_path)
 
-    merged = nearest_merge(pred, gt, tolerance=0.05)
+    merged = nearest_merge(pred, gt, tolerance=timestamp_tolerance)
     merged = merged.dropna()
 
     if len(merged) < 10:
@@ -209,8 +211,8 @@ def process_run(run, sequence_map):
     visual = visual.drop(columns=["sequence", "method"], errors="ignore")
     motion = motion.drop(columns=["sequence", "method"], errors="ignore")
 
-    merged_visual = nearest_merge(base, visual, tolerance=0.05)
-    merged_all = nearest_merge(merged_visual, motion, tolerance=0.05)
+    merged_visual = nearest_merge(base, visual, tolerance=timestamp_tolerance)
+    merged_all = nearest_merge(merged_visual, motion, tolerance=timestamp_tolerance)
 
     merged_all = merged_all.dropna(subset=["aligned_position_error_m"])
 
@@ -374,14 +376,40 @@ def create_effect_table(binned):
 
     return effect
 
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Run generic condition-dependent VO/VIO failure diagnostics."
+    )
+
+    parser.add_argument(
+        "--timestamp-tolerance",
+        type=float,
+        default=0.05,
+        help=(
+            "Nearest-neighbor timestamp matching tolerance in seconds. "
+            "Default: 0.05 seconds."
+        ),
+    )
+
+    return parser.parse_args()
 
 def main():
+    args = parse_args()
     sequence_map = load_sequence_config()
+
+    print(
+        f"Using timestamp matching tolerance: "
+        f"{args.timestamp_tolerance:.3f} seconds"
+    )
 
     all_rows = []
 
     for run in iter_successful_runs():
-        result = process_run(run, sequence_map)
+        result = process_run(
+            run,
+            sequence_map,
+            timestamp_tolerance=args.timestamp_tolerance,
+        )
         if result is not None:
             all_rows.append(result)
 
