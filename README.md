@@ -1,5 +1,7 @@
 # VO/VIO Deployment-Oriented Evaluation Framework
 
+![Tests](https://github.com/bedoemad/vo_vio_eval/actions/workflows/tests.yml/badge.svg)
+
 This project is a deployment-oriented evaluation framework for Visual Odometry (VO) and Visual-Inertial Odometry (VIO) systems.
 
 The framework evaluates VO/VIO methods not only by trajectory accuracy, but also by practical deployment metrics and interpretable failure behavior.
