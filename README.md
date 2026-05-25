@@ -264,6 +264,7 @@ Generated outputs are saved under:
 ```text
 results/
 ```
+See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the framework architecture.
 
 ---
 
