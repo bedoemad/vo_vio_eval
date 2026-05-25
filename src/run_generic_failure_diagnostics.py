@@ -154,7 +154,7 @@ def iter_successful_runs():
         yield run
 
 
-def process_run(run, sequence_map):
+def process_run(run, sequence_map, timestamp_tolerance: float):
     method = run["method"]
     sequence = run["sequence"]
 
