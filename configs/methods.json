@@ -34,6 +34,11 @@
   "name": "dpvo_kitti",
   "command_template": "python adapters/run_dpvo_kitti.py --sequence {sequence_path} --output {output_path}",
   "output_trajectory": "{output_path}"
+},
+{
+  "name": "orbslam3_euroc_mono_inertial",
+  "command_template": "python adapters/run_orbslam3_euroc_mono_inertial.py --sequence-name {sequence_name} --sequence {sequence_path} --output {output_path}",
+  "output_trajectory": "{output_path}"
 }
     
   ]

@@ -75,5 +75,15 @@
 "example_adapter_test": {
   "methods": ["example_adapter"],
   "sequences": ["euroc_mh01"]
+},
+"euroc_orbslam3_mono_inertial": {
+  "methods": ["orbslam3_euroc_mono_inertial"],
+  "sequences": [
+    "euroc_mh01",
+    "euroc_mh02",
+    "euroc_mh03",
+    "euroc_mh04",
+    "euroc_mh05"
+  ]
 }
 }
