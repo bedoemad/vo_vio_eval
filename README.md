@@ -387,6 +387,39 @@ The setup checker reports:
 
 ---
 
+---
+
+## Testing
+
+The framework includes a lightweight test suite for core configuration loading, config lookup helpers, metric alignment modes, and timestamp-based diagnostic matching.
+
+Install dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+Run all tests:
+
+pytest
+
+Expected output:
+
+11 passed
+
+The tests currently check:
+
+method and sequence configuration loading
+method and sequence lookup behavior
+Sim(3) and SE(3) metric alignment flags
+timestamp tolerance behavior for diagnostic nearest-neighbor matching
+
+Then run:
+
+```bash
+pytest
+```
+---
+
 ## 9. Dataset Preparation
 
 The framework can automatically prepare TUM-format ground-truth files.
