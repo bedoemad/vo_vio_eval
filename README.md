@@ -562,6 +562,7 @@ Available commands:
 check       check setup, configs, paths, and tools
 prepare     prepare dataset ground-truth files
 run         run full benchmark automation
+run-one          run one method on one sequence
 summarize   regenerate benchmark summary tables
 visual      generate visual-condition files
 motion      generate motion-condition files
@@ -646,6 +647,24 @@ If a prediction already exists and you only want to recompute metrics:
 
 ```bash
 python src/main.py --method dpvo_kitti --sequence kitti_04 --skip-run --metrics
+```
+
+The same single-method workflow can also be run through the main CLI:
+
+```bash
+python src/voeval.py run-one \
+  --method orbslam3_euroc_mono_inertial \
+  --sequence euroc_mh01 \
+  --metrics
+```
+
+To recompute metrics for an existing prediction without rerunning the model:
+```bash
+python src/voeval.py run-one \
+  --method orbslam3_euroc_mono_inertial \
+  --sequence euroc_mh01 \
+  --skip-run \
+  --metrics
 ```
 
 When using `--skip-run --metrics`, the framework reuses the existing `run_result.json` and recomputes metrics without overwriting the original runtime and memory measurements.

@@ -134,6 +134,32 @@ def cmd_report_filtered(args):
 
     run(cmd)
 
+def cmd_run_one(args):
+    cmd = [
+        "python",
+        "src/main.py",
+        "--method",
+        args.method,
+        "--sequence",
+        args.sequence,
+    ]
+
+    if args.methods_config:
+        cmd += ["--methods", args.methods_config]
+
+    if args.sequences_config:
+        cmd += ["--sequences", args.sequences_config]
+
+    if args.results:
+        cmd += ["--results", args.results]
+
+    if args.skip_run:
+        cmd += ["--skip-run"]
+
+    if args.metrics:
+        cmd += ["--metrics"]
+
+    run(cmd)
 
 def main():
     parser = argparse.ArgumentParser(
@@ -168,6 +194,48 @@ def main():
     p.add_argument("--skip-failure", action="store_true")
     p.add_argument("--skip-plots", action="store_true")
     p.set_defaults(func=cmd_run)
+
+        # run-one
+    p = sub.add_parser(
+        "run-one",
+        help="Run one method on one sequence.",
+    )
+    p.add_argument(
+        "--method",
+        required=True,
+        help="Method name from configs/methods.json.",
+    )
+    p.add_argument(
+        "--sequence",
+        required=True,
+        help="Sequence name from configs/sequences.json.",
+    )
+    p.add_argument(
+        "--methods-config",
+        default=None,
+        help="Optional path to methods config JSON.",
+    )
+    p.add_argument(
+        "--sequences-config",
+        default=None,
+        help="Optional path to sequences config JSON.",
+    )
+    p.add_argument(
+        "--results",
+        default=None,
+        help="Optional results root directory.",
+    )
+    p.add_argument(
+        "--skip-run",
+        action="store_true",
+        help="Reuse an existing prediction and run only post-processing/metrics.",
+    )
+    p.add_argument(
+        "--metrics",
+        action="store_true",
+        help="Run evo APE/RPE metrics after the method finishes.",
+    )
+    p.set_defaults(func=cmd_run_one)
 
     # summarize
     p = sub.add_parser("summarize", help="Regenerate benchmark summary tables.")
