@@ -142,6 +142,8 @@ def run_metrics_if_requested(sequence: SequenceConfig, result: RunResult) -> Non
     print(f"APE SE(3) result: {ape_se3}")
     print(f"RPE SE(3) result: {rpe_se3}")
 
+
+
 def main() -> None:
     args = parse_args()
 
