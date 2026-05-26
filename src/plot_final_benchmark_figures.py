@@ -1,151 +1,314 @@
 from pathlib import Path
-import pandas as pd
+import json
+import re
+
 import matplotlib.pyplot as plt
-import numpy as np
-from benchmark_filters import keep_real_benchmark_methods
+import pandas as pd
 
 
-INPUT = Path("results/final_tables/benchmark_summary_final.csv")
-OUT_DIR = Path("results/final_figures/benchmark_clean")
-OUT_DIR.mkdir(parents=True, exist_ok=True)
+INPUT_CSV = Path("results/final_tables/benchmark_summary_final.csv")
+OUTPUT_ROOT = Path("results/final_figures/benchmark_clean")
+METHODS_CONFIG = Path("configs/methods.json")
 
-df = pd.read_csv(INPUT)
 
-# Safety filter: final plots should never include smoke-test/demo adapters.
-df = keep_real_benchmark_methods(df)
-
-df = df[df["success"] == True].copy()
-df = df.dropna(subset=["dataset", "sequence", "method"])
-
-df["dataset"] = df["dataset"].astype(str)
-df["sequence"] = df["sequence"].astype(str)
-df["method"] = df["method"].astype(str)
-
-metric_name_map = {
-    "trajectory_length_m": "Trajectory Length (m)",
+METRICS = {
     "ape_rmse_m": "APE RMSE (m)",
     "rpe_rmse_m": "RPE RMSE (m)",
-    "ape_rmse_percent_of_path": "APE RMSE (% of path length)",
-    "runtime_sec": "Runtime (sec)",
-    "runtime_per_frame_sec": "Runtime per Frame (sec/frame)",
+    "ape_rmse_percent_of_path": "APE RMSE (% of path)",
+    "runtime_sec": "Runtime (s)",
+    "runtime_per_frame_sec": "Runtime per Frame (s)",
     "processed_fps": "Processed FPS",
-    "runtime_per_meter_sec": "Runtime per Meter (sec/m)",
+    "runtime_per_meter_sec": "Runtime per Meter (s/m)",
     "peak_memory_mb": "Peak Memory (MB)",
     "avg_memory_mb": "Average Memory (MB)",
 }
 
-plots = [
-    "ape_rmse_m",
-    "rpe_rmse_m",
-    "ape_rmse_percent_of_path",
-    "runtime_sec",
-    "runtime_per_frame_sec",
+
+HIGHER_IS_BETTER = {
     "processed_fps",
-    "peak_memory_mb",
-    "avg_memory_mb",
-]
+}
 
 
-def save_grouped_bar(dataset_df, dataset, metric):
-    plot_df = dataset_df.dropna(subset=[metric]).copy()
+TOKEN_LABELS = {
+    "orbslam3": "ORB-SLAM3",
+    "orbslam": "ORB-SLAM",
+    "dpvo": "DPVO",
+    "droidslam": "DROID-SLAM",
+    "dso": "DSO",
+    "svo": "SVO",
+    "openvins": "OpenVINS",
+    "msckf": "MSCKF",
+    "vins": "VINS",
+    "vio": "VIO",
+    "vo": "VO",
+    "slam": "SLAM",
+    "mono": "Mono",
+    "monocular": "Monocular",
+    "stereo": "Stereo",
+    "rgbd": "RGB-D",
+    "rgb": "RGB",
+    "imu": "IMU",
+    "inertial": "Inertial",
+    "euroc": "EuRoC",
+    "kitti": "KITTI",
+}
 
-    if plot_df.empty:
-        print(f"[SKIP] {dataset} {metric}: no data")
-        return
 
-    sequences = sorted(plot_df["sequence"].unique())
-    methods = sorted(plot_df["method"].unique())
+def auto_method_label(method_name: str) -> str:
+    """
+    Creates a readable label for any method name.
 
-    x = np.arange(len(sequences))
-    width = 0.8 / max(len(methods), 1)
+    Example:
+        orbslam3_euroc_mono_inertial -> ORB-SLAM3 Mono Inertial
+        my_new_vio_model             -> My New VIO Model
+    """
+    cleaned = method_name.strip()
 
-    plt.figure(figsize=(max(10, 0.8 * len(sequences)), 6))
+    # Remove dataset tokens from labels because dataset is already shown separately.
+    parts = re.split(r"[_\-\s]+", cleaned)
+    readable_parts = []
 
-    for i, method in enumerate(methods):
-        values = []
+    for part in parts:
+        key = part.lower()
 
-        for seq in sequences:
-            row = plot_df[
-                (plot_df["sequence"] == seq)
-                & (plot_df["method"] == method)
-            ]
+        if key in {"euroc", "kitti"}:
+            continue
 
-            if row.empty:
-                values.append(np.nan)
-            else:
-                values.append(float(row[metric].iloc[0]))
+        readable_parts.append(TOKEN_LABELS.get(key, part.title()))
 
-        offset = (i - (len(methods) - 1) / 2) * width
-        plt.bar(x + offset, values, width, label=method)
+    if not readable_parts:
+        return method_name
 
-    plt.xticks(x, sequences, rotation=45, ha="right")
-    plt.ylabel(metric_name_map.get(metric, metric))
-    plt.xlabel("Sequence")
-    plt.title(f"{dataset}: {metric_name_map.get(metric, metric)}")
-    plt.legend()
+    label = " ".join(readable_parts)
+
+    # Small cleanup for common labels.
+    label = label.replace("Mono Inertial", "Mono-Inertial")
+
+    return label
+
+
+def load_method_labels() -> dict[str, str]:
+    """
+    Loads optional display labels from configs/methods.json.
+
+    If a method has one of these optional fields, it will be used:
+        display_name
+        plot_label
+        label
+
+    Otherwise, a readable label is generated automatically.
+    """
+    labels = {}
+
+    if METHODS_CONFIG.exists():
+        with METHODS_CONFIG.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        for method in data.get("methods", []):
+            name = method.get("name")
+
+            if not name:
+                continue
+
+            display_name = (
+                method.get("display_name")
+                or method.get("plot_label")
+                or method.get("label")
+                or auto_method_label(name)
+            )
+
+            labels[name] = display_name
+
+    return labels
+
+
+def ensure_dir(path: Path) -> None:
+    path.mkdir(parents=True, exist_ok=True)
+
+
+def clean_dataset_name(dataset: str) -> str:
+    return str(dataset).strip().lower().replace(" ", "_")
+
+
+def dynamic_figsize(num_sequences: int, num_methods: int) -> tuple[float, float]:
+    width = max(7.0, min(16.0, 2.8 + num_sequences * max(0.8, num_methods * 0.35)))
+    height = max(4.2, min(8.0, 3.8 + num_methods * 0.25))
+    return width, height
+
+
+def save_current_plot(output_path: Path) -> None:
+    ensure_dir(output_path.parent)
     plt.tight_layout()
-
-    dataset_dir = OUT_DIR / dataset.lower()
-    dataset_dir.mkdir(parents=True, exist_ok=True)
-
-    plt.savefig(dataset_dir / f"{metric}.png", dpi=220, bbox_inches="tight")
+    plt.savefig(output_path, dpi=180, bbox_inches="tight")
     plt.close()
 
 
-for dataset in sorted(df["dataset"].unique()):
-    dataset_df = df[df["dataset"] == dataset].copy()
+def plot_grouped_metric(df: pd.DataFrame, metric: str, title: str, output_path: Path) -> None:
+    if metric not in df.columns:
+        print(f"[SKIP] Missing metric column: {metric}")
+        return
 
-    for metric in plots:
-        if metric in dataset_df.columns:
-            save_grouped_bar(dataset_df, dataset, metric)
+    data = df.copy()
+
+    if "success" in data.columns:
+        data = data[data["success"] == True]
+
+    data = data.dropna(subset=[metric])
+
+    if data.empty:
+        print(f"[SKIP] No valid data for metric: {metric}")
+        return
+
+    pivot = data.pivot_table(
+        index="sequence",
+        columns="method_label",
+        values=metric,
+        aggfunc="mean",
+    )
+
+    pivot = pivot.sort_index()
+
+    figsize = dynamic_figsize(
+        num_sequences=len(pivot.index),
+        num_methods=len(pivot.columns),
+    )
+
+    ax = pivot.plot(kind="bar", figsize=figsize, width=0.82)
+
+    direction = "Higher is better" if metric in HIGHER_IS_BETTER else "Lower is better"
+
+    ax.set_title(f"{title}\n{direction}", fontsize=12, fontweight="bold")
+    ax.set_xlabel("Sequence")
+    ax.set_ylabel(title)
+    ax.grid(axis="y", alpha=0.3)
+
+    if len(pivot.index) > 5:
+        ax.tick_params(axis="x", rotation=35)
+    else:
+        ax.tick_params(axis="x", rotation=0)
+
+    ax.legend(
+        title="Method",
+        fontsize=8,
+        title_fontsize=9,
+        loc="best",
+        frameon=True,
+    )
+
+    save_current_plot(output_path)
 
 
-# Clean accuracy-efficiency tradeoff without value labels
-trade_metrics = ["runtime_per_frame_sec", "ape_rmse_m"]
+def plot_accuracy_efficiency(df: pd.DataFrame, output_path: Path) -> None:
+    required = {"ape_rmse_m", "runtime_per_frame_sec", "method_label"}
 
-if all(c in df.columns for c in trade_metrics):
-    trade_df = df.dropna(subset=trade_metrics).copy()
+    if not required.issubset(df.columns):
+        print("[SKIP] Missing columns for accuracy-efficiency plot")
+        return
 
-    for dataset in sorted(trade_df["dataset"].unique()):
-        ds = trade_df[trade_df["dataset"] == dataset].copy()
+    data = df.copy()
 
-        if ds.empty:
-            continue
+    if "success" in data.columns:
+        data = data[data["success"] == True]
 
-        plt.figure(figsize=(9, 6))
+    data = data.dropna(subset=["ape_rmse_m", "runtime_per_frame_sec"])
 
-        for method in sorted(ds["method"].unique()):
-            sub = ds[ds["method"] == method]
-            plt.scatter(
-                sub["runtime_per_frame_sec"],
-                sub["ape_rmse_m"],
-                s=70,
-                label=method,
-            )
+    if data.empty:
+        print("[SKIP] No valid data for accuracy-efficiency plot")
+        return
 
-            for _, row in sub.iterrows():
+    methods = list(data["method_label"].dropna().unique())
+
+    plt.figure(figsize=(8.5, 5.2))
+
+    for method in methods:
+        subset = data[data["method_label"] == method]
+
+        plt.scatter(
+            subset["runtime_per_frame_sec"],
+            subset["ape_rmse_m"],
+            label=method,
+            s=55,
+            alpha=0.85,
+        )
+
+        if len(data) <= 20:
+            for _, row in subset.iterrows():
                 plt.annotate(
-                    row["sequence"],
-                    (row["runtime_per_frame_sec"], row["ape_rmse_m"]),
+                    str(row.get("sequence", "")),
+                    (
+                        row["runtime_per_frame_sec"],
+                        row["ape_rmse_m"],
+                    ),
+                    fontsize=7,
+                    xytext=(4, 4),
                     textcoords="offset points",
-                    xytext=(5, 5),
-                    fontsize=8,
                 )
 
-        plt.xlabel("Runtime per Frame (sec/frame)")
-        plt.ylabel("APE RMSE (m)")
-        plt.title(f"{dataset}: Accuracy vs Runtime per Frame")
-        plt.legend()
+    plt.title("Accuracy vs Runtime per Frame\nLower-left is better", fontsize=12, fontweight="bold")
+    plt.xlabel("Runtime per Frame (s)")
+    plt.ylabel("APE RMSE (m)")
+    plt.grid(alpha=0.3)
+    plt.legend(title="Method", fontsize=8, title_fontsize=9)
 
-        if dataset == "KITTI":
-            plt.yscale("log")
+    save_current_plot(output_path)
 
-        plt.tight_layout()
-        plt.savefig(
-            OUT_DIR / dataset.lower() / "accuracy_vs_runtime_per_frame.png",
-            dpi=220,
-            bbox_inches="tight",
-        )
-        plt.close()
 
-print(f"Saved clean benchmark figures to {OUT_DIR}")
+def add_method_labels(df: pd.DataFrame) -> pd.DataFrame:
+    labels = load_method_labels()
+
+    df = df.copy()
+    df["method_label"] = df["method"].map(
+        lambda name: labels.get(name, auto_method_label(str(name)))
+    )
+
+    return df
+
+
+def generate_for_dataset(df: pd.DataFrame, dataset_name: str, output_dir: Path) -> None:
+    ensure_dir(output_dir)
+
+    for metric, title in METRICS.items():
+        output_path = output_dir / f"{metric}.png"
+        plot_grouped_metric(df, metric, title, output_path)
+
+    plot_accuracy_efficiency(
+        df,
+        output_dir / "accuracy_vs_runtime_per_frame.png",
+    )
+
+
+def main() -> None:
+    if not INPUT_CSV.exists():
+        raise FileNotFoundError(f"Missing benchmark table: {INPUT_CSV}")
+
+    df = pd.read_csv(INPUT_CSV)
+
+    if df.empty:
+        raise RuntimeError(f"Benchmark table is empty: {INPUT_CSV}")
+
+    if "method" not in df.columns:
+        raise RuntimeError("Benchmark table must contain a 'method' column.")
+
+    if "sequence" not in df.columns:
+        raise RuntimeError("Benchmark table must contain a 'sequence' column.")
+
+    df = add_method_labels(df)
+
+    ensure_dir(OUTPUT_ROOT)
+
+    # Combined plots across all datasets.
+    generate_for_dataset(df, "combined", OUTPUT_ROOT / "combined")
+
+    # Dataset-specific plots are generated automatically for any dataset name.
+    if "dataset" in df.columns:
+        for dataset_name, dataset_df in df.groupby("dataset"):
+            clean_name = clean_dataset_name(dataset_name)
+            generate_for_dataset(dataset_df, str(dataset_name), OUTPUT_ROOT / clean_name)
+    else:
+        print("[WARN] No dataset column found; only combined plots generated.")
+
+    print(f"Saved benchmark figures to {OUTPUT_ROOT}")
+
+
+if __name__ == "__main__":
+    main()
