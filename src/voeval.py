@@ -117,6 +117,24 @@ def cmd_plot(args):
 def cmd_report(args):
     run(["python", "src/generate_report.py"])
 
+def cmd_report_filtered(args):
+    cmd = ["python", "src/generate_filtered_report.py"]
+
+    if args.dataset:
+        cmd += ["--dataset", args.dataset]
+
+    if args.methods:
+        cmd += ["--methods"] + args.methods
+
+    if args.sequences:
+        cmd += ["--sequences"] + args.sequences
+
+    if args.name:
+        cmd += ["--name", args.name]
+
+    run(cmd)
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="VO/VIO evaluation framework command-line interface."
@@ -177,6 +195,35 @@ def main():
     # report
     p = sub.add_parser("report", help="Generate HTML report.")
     p.set_defaults(func=cmd_report)
+        # report-filtered
+    p = sub.add_parser(
+        "report-filtered",
+        help="Generate a filtered dashboard report for selected datasets, methods, or sequences.",
+    )
+    p.add_argument(
+        "--dataset",
+        default=None,
+        help="Dataset filter, for example: EuRoC or KITTI.",
+    )
+    p.add_argument(
+        "--methods",
+        nargs="+",
+        default=None,
+        help="Optional method names to include.",
+    )
+    p.add_argument(
+        "--sequences",
+        nargs="+",
+        default=None,
+        help="Optional sequence names to include.",
+    )
+    p.add_argument(
+        "--name",
+        default="filtered_report",
+        help="Report output folder name under results/reports/.",
+    )
+    p.set_defaults(func=cmd_report_filtered)
+    
 
     args = parser.parse_args()
     args.func(args)
