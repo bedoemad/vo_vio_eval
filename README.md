@@ -648,6 +648,17 @@ If a prediction already exists and you only want to recompute metrics:
 python src/main.py --method dpvo_kitti --sequence kitti_04 --skip-run --metrics
 ```
 
+When using `--skip-run --metrics`, the framework reuses the existing `run_result.json` and recomputes metrics without overwriting the original runtime and memory measurements.
+
+Example:
+
+```bash
+python src/main.py \
+  --method orbslam3_euroc_mono_inertial \
+  --sequence euroc_mh01 \
+  --skip-run \
+  --metrics
+```
 ---
 
 ## 15. Full Automation
