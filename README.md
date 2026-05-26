@@ -870,6 +870,39 @@ The HTML report is generated as a compact dashboard. It includes:
 - diagnostic-effect summaries
 - links to final CSV tables
 
+## Filtered Reports
+
+The framework can generate focused dashboard reports for a subset of datasets, methods, or sequences without moving or deleting result folders.
+
+Generate a EuRoC-only report for one VIO method:
+
+```bash
+python src/generate_filtered_report.py \
+  --dataset EuRoC \
+  --methods orbslam3_euroc_mono_inertial \
+  --name euroc_vio
+```
+  Open:
+
+results/reports/euroc_vio/report.html
+
+Generate a EuRoC comparison report:
+```bash
+python src/generate_filtered_report.py \
+  --dataset EuRoC \
+  --methods orbslam3_euroc_mono_inertial orbslam3_mono dpvo_euroc \
+  --name euroc_comparison
+```
+Open:
+
+results/reports/euroc_comparison/report.html
+
+Filtered reports also save filtered CSV files:
+
+results/reports/<name>/benchmark_filtered.csv
+results/reports/<name>/visual_conditions_filtered.csv
+
+
 ---
 
 ## 21. Adding a New VO/VIO Model
