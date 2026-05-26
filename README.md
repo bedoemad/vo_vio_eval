@@ -859,14 +859,16 @@ Output:
 results/report.html
 ```
 
-The report includes:
+The HTML report is generated as a compact dashboard. It includes:
 
-- final table links
-- benchmark table preview
-- benchmark figures
-- visual-condition summary
-- diagnostic-effect preview
-- generic diagnostic figures
+- overview cards
+- method ranking
+- best method per sequence
+- searchable sequence-level results
+- key benchmark figures
+- visual-condition summaries
+- diagnostic-effect summaries
+- links to final CSV tables
 
 ---
 
