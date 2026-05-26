@@ -153,16 +153,27 @@ def main() -> None:
     method = find_method(methods, args.method)
     sequence = find_sequence(sequences, args.sequence)
 
+    result_dir = results_root / method.name / sequence.name
+    ensure_dir(result_dir)
+
     print(f"Running method={method.name}, sequence={sequence.name}")
 
     if args.skip_run:
-        result = make_skip_run_result(method, sequence, results_root)
-    else:
-        runner = MethodRunner(results_root=results_root)
-        raw_result = runner.run(method, sequence)
-        result = dict_to_run_result(object_to_dict(raw_result))
+        existing_result_path = result_dir / "run_result.json"
 
-    save_run_result(result)
+        if existing_result_path.exists():
+            with existing_result_path.open("r", encoding="utf-8") as f:
+                existing_data = json.load(f)
+
+            result = dict_to_run_result(existing_data)
+            print(f"Loaded existing run result from {existing_result_path}")
+        else:
+            result = make_skip_run_result(method, sequence, result_dir)
+            print("No existing run_result.json found; using skip-run placeholder result.")
+    else:
+        runner = MethodRunner(method, sequence, result_dir)
+        result = runner.run()
+        save_run_result(result)
 
     print(json.dumps(asdict(result), indent=2))
 
@@ -173,7 +184,5 @@ def main() -> None:
     save_json(latest_summary_path, {"latest_run": asdict(result)})
 
     print(f"Saved latest run summary to {latest_summary_path}")
-
-
 if __name__ == "__main__":
     main()
