@@ -21,7 +21,8 @@
       "kitti_06",
       "kitti_07",
       "kitti_08",
-      "kitti_09"
+      "kitti_09",
+      "kitti_10"
     ]
   },
   "dpvo_euroc": {
@@ -46,7 +47,8 @@
     "kitti_06",
     "kitti_07",
     "kitti_08",
-    "kitti_09"
+    "kitti_09",
+    "kitti_10"
   ]
 },
   "all_orbslam3": {
@@ -69,7 +71,8 @@
       "kitti_06",
       "kitti_07",
       "kitti_08",
-      "kitti_09"
+      "kitti_09",
+      "kitti_10"
     ]
   },
 "example_adapter_test": {

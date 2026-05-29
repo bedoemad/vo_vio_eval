@@ -105,6 +105,13 @@
       "path": "${KITTI_COLOR_ROOT}/sequences/09",
       "groundtruth": "${PROJECT_ROOT}/data/kitti/poses/09_tum.txt",
       "camera_topic_or_folder": "image_2"
+    },
+    {
+      "name": "kitti_10",
+      "dataset": "KITTI",
+      "path": "${KITTI_COLOR_ROOT}/sequences/10",
+      "groundtruth": "${PROJECT_ROOT}/data/kitti/poses/10_tum.txt",
+      "camera_topic_or_folder": "image_2"
     }
   ]
 }

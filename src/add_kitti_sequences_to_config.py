@@ -5,7 +5,7 @@ CONFIG = Path("configs/sequences.json")
 KITTI_ROOT = "/mnt/d/Games/data_odometry_color/dataset/sequences"
 
 # Change this to include "10" if needed
-KITTI_SEQS = ["01", "02", "03", "04", "05", "06", "07", "08", "09"]
+KITTI_SEQS = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10"]
 
 with open(CONFIG, "r") as f:
     config = json.load(f)

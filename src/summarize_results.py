@@ -218,7 +218,7 @@ sequence_order = [
     "euroc_mh03",
     "euroc_mh04",
     "euroc_mh05",
-] + [f"kitti_{i:02d}" for i in range(10)]
+] + [f"kitti_{i:02d}" for i in range(11)]
 
 order_map = {seq: i for i, seq in enumerate(sequence_order)}
 

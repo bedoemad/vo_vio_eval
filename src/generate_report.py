@@ -25,12 +25,23 @@ def rel(path: Path) -> str:
 
 
 def safe(value) -> str:
+    if value is None:
+        return "—"
     return html.escape(str(value))
 
 
 def fmt(value, digits: int = 3) -> str:
-    if value is None or pd.isna(value):
-        return "—"
+    try:
+        if pd.isna(value):
+            return "—"
+    except Exception:
+        pass
+
+    if isinstance(value, bool):
+        return str(value)
+
+    if isinstance(value, int):
+        return str(value)
 
     if isinstance(value, float):
         return f"{value:.{digits}f}"
@@ -38,8 +49,15 @@ def fmt(value, digits: int = 3) -> str:
     return str(value)
 
 
+def success_mask(df: pd.DataFrame) -> pd.Series:
+    if "success" not in df.columns:
+        return pd.Series([True] * len(df), index=df.index)
+
+    return df["success"].astype(str).str.lower().isin(["true", "1", "yes", "ok"])
+
+
 def badge(value) -> str:
-    if value is True or str(value).lower() == "true":
+    if value is True or str(value).lower() in ["true", "1", "yes", "ok"]:
         return "<span class='badge ok'>OK</span>"
     return "<span class='badge fail'>FAIL</span>"
 
@@ -70,11 +88,7 @@ def make_summary_cards(df: pd.DataFrame) -> str:
     total_runs = len(df)
     total_methods = df["method"].nunique() if "method" in df.columns else 0
     total_sequences = df["sequence"].nunique() if "sequence" in df.columns else 0
-
-    if "success" in df.columns:
-        successful_runs = int(df["success"].sum())
-    else:
-        successful_runs = total_runs
+    successful_runs = int(success_mask(df).sum())
 
     best_ape = "—"
     if "ape_rmse_m" in df.columns and df["ape_rmse_m"].notna().any():
@@ -96,14 +110,162 @@ def make_summary_cards(df: pd.DataFrame) -> str:
     return "<div class='metric-grid'>" + "\n".join(cards) + "</div>"
 
 
+def dataset_coverage_table(df: pd.DataFrame) -> str:
+    if df.empty or "method" not in df.columns or "sequence" not in df.columns:
+        return "<div class='panel'><p class='empty'>No dataset coverage data available.</p></div>"
+
+    data = df.copy()
+
+    if "dataset" not in data.columns:
+        data["dataset"] = data["sequence"].apply(
+            lambda s: "KITTI" if str(s).startswith("kitti") else "EuRoC"
+        )
+
+    data["success_bool"] = success_mask(data)
+
+    grouped = (
+        data.groupby(["dataset", "method"])
+        .agg(
+            sequences=("sequence", "nunique"),
+            runs=("sequence", "count"),
+            successful_runs=("success_bool", "sum"),
+        )
+        .reset_index()
+    )
+
+    grouped["failed_runs"] = grouped["runs"] - grouped["successful_runs"]
+    grouped["success_rate"] = grouped["successful_runs"] / grouped["runs"]
+    grouped = grouped.sort_values(["dataset", "method"])
+
+    rows = []
+    for _, row in grouped.iterrows():
+        rows.append(
+            f"""
+            <tr>
+              <td>{safe(row.get("dataset", "—"))}</td>
+              <td>{safe(row.get("method", "—"))}</td>
+              <td>{fmt(row.get("sequences"), 0)}</td>
+              <td>{fmt(row.get("runs"), 0)}</td>
+              <td>{fmt(row.get("successful_runs"), 0)}</td>
+              <td>{fmt(row.get("failed_runs"), 0)}</td>
+              <td>{fmt(row.get("success_rate") * 100, 1)}%</td>
+            </tr>
+            """
+        )
+
+    return f"""
+    <div class="panel">
+      <p class="note">
+        This table summarizes method coverage across datasets and highlights failed or invalid runs.
+      </p>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Dataset</th>
+              <th>Method</th>
+              <th>Sequences</th>
+              <th>Total runs</th>
+              <th>Successful</th>
+              <th>Failed</th>
+              <th>Success rate</th>
+            </tr>
+          </thead>
+          <tbody>
+            {''.join(rows)}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    """
+
+
+def failed_runs_table(df: pd.DataFrame) -> str:
+    if df.empty or "success" not in df.columns:
+        return "<div class='panel'><p class='empty'>No run-validity data available.</p></div>"
+
+    data = df.copy()
+    failed = data[~success_mask(data)]
+
+    if failed.empty:
+        return """
+        <div class="panel">
+          <p class="note">
+            No failed or invalid runs were found in the current benchmark summary.
+          </p>
+        </div>
+        """
+
+    columns = [
+        "dataset",
+        "sequence",
+        "difficulty",
+        "method",
+        "success",
+        "runtime_sec",
+        "peak_memory_mb",
+        "error_message",
+    ]
+    columns = [col for col in columns if col in failed.columns]
+    failed = failed[columns]
+
+    sort_cols = [col for col in ["dataset", "sequence", "method"] if col in failed.columns]
+    if sort_cols:
+        failed = failed.sort_values(sort_cols)
+
+    rows = []
+    for _, row in failed.iterrows():
+        rows.append(
+            f"""
+            <tr>
+              <td>{safe(row.get("dataset", "—"))}</td>
+              <td>{safe(row.get("sequence", "—"))}</td>
+              <td>{safe(row.get("difficulty", "—"))}</td>
+              <td>{safe(row.get("method", "—"))}</td>
+              <td>{badge(row.get("success", False))}</td>
+              <td>{fmt(row.get("runtime_sec"), 2)}</td>
+              <td>{fmt(row.get("peak_memory_mb"), 1)}</td>
+              <td>{safe(row.get("error_message", "—"))}</td>
+            </tr>
+            """
+        )
+
+    return f"""
+    <div class="panel">
+      <p class="note">
+        Failed or invalid runs are important in deployment-oriented evaluation:
+        a method should not be considered successful only because it produced an output file.
+      </p>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Dataset</th>
+              <th>Sequence</th>
+              <th>Difficulty</th>
+              <th>Method</th>
+              <th>Status</th>
+              <th>Runtime (s)</th>
+              <th>Peak memory (MB)</th>
+              <th>Error message</th>
+            </tr>
+          </thead>
+          <tbody>
+            {''.join(rows)}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    """
+
+
 def method_ranking_table(df: pd.DataFrame) -> str:
     if df.empty or "method" not in df.columns or "ape_rmse_m" not in df.columns:
         return "<div class='panel'><p class='empty'>No method ranking data available.</p></div>"
 
     data = df.copy()
-
-    if "success" in data.columns:
-        data = data[data["success"] == True]
+    data = data[success_mask(data)]
+    data = data.dropna(subset=["ape_rmse_m"])
 
     if data.empty:
         return "<div class='panel'><p class='empty'>No successful method runs available.</p></div>"
@@ -183,10 +345,7 @@ def best_per_sequence_table(df: pd.DataFrame) -> str:
         return "<div class='panel'><p class='empty'>No best-per-sequence data available.</p></div>"
 
     data = df.copy()
-
-    if "success" in data.columns:
-        data = data[data["success"] == True]
-
+    data = data[success_mask(data)]
     data = data.dropna(subset=["ape_rmse_m"])
 
     if data.empty:
@@ -389,7 +548,7 @@ def diagnostics_table(df: pd.DataFrame) -> str:
     if "hard_minus_easy_error_m" in data.columns:
         data = data.sort_values("hard_minus_easy_error_m", ascending=False)
 
-    data = data.head(20)
+    data = data.head(25)
 
     rows = []
     for _, row in data.iterrows():
@@ -468,6 +627,30 @@ def collect_pngs(folder: Path) -> list[Path]:
     return sorted(folder.rglob("*.png"))
 
 
+def pretty_title_from_path(path: Path, root: Path) -> str:
+    try:
+        relative = path.relative_to(root)
+    except ValueError:
+        relative = path.name
+
+    parts = list(Path(relative).with_suffix("").parts)
+    return " / ".join(part.replace("_", " ").replace("-", " ").title() for part in parts)
+
+
+def figure_gallery_from_folder(
+    folder: Path,
+    description: str = "",
+    max_figures=None,
+) -> str:
+    pngs = collect_pngs(folder)
+
+    if max_figures is not None:
+        pngs = pngs[:max_figures]
+
+    cards = [figure(path, pretty_title_from_path(path, folder), description) for path in pngs]
+    return figure_grid(cards)
+
+
 def details(title: str, body: str) -> str:
     return f"""
     <details>
@@ -507,50 +690,29 @@ def main():
     visual_df = read_csv(FINAL_TABLES_DIR / "visual_conditions_summary_final.csv")
     diagnostics_df = read_csv(FINAL_TABLES_DIR / "all_methods_condition_effect_summary.csv")
 
-    benchmark_figures = figure_grid(
-        [
-            figure(
-                FIGURES_DIR / "benchmark_clean" / "euroc" / "ape_rmse_m.png",
-                "EuRoC APE RMSE",
-                "Absolute pose error. Lower is better.",
-            ),
-            figure(
-                FIGURES_DIR / "benchmark_clean" / "euroc" / "rpe_rmse_m.png",
-                "EuRoC RPE RMSE",
-                "Relative pose error. Lower is better.",
-            ),
-            figure(
-                FIGURES_DIR / "benchmark_clean" / "euroc" / "processed_fps.png",
-                "EuRoC Processed FPS",
-                "Processing speed. Higher is better.",
-            ),
-            figure(
-                FIGURES_DIR / "benchmark_clean" / "euroc" / "runtime_per_frame_sec.png",
-                "EuRoC Runtime per Frame",
-                "Per-frame computational cost. Lower is better.",
-            ),
-        ]
+    benchmark_figures = figure_gallery_from_folder(
+        FIGURES_DIR / "benchmark_clean",
+        "Accuracy, runtime, and memory benchmark figures across all datasets.",
     )
 
-    visual_figures = figure_grid(
-        [
-            figure(
-                FIGURES_DIR / "visual_conditions" / "euroc" / "blur_mean.png",
-                "Mean Blur by Sequence",
-            ),
-            figure(
-                FIGURES_DIR / "visual_conditions" / "euroc" / "texture_mean.png",
-                "Mean Texture by Sequence",
-            ),
-            figure(
-                FIGURES_DIR / "visual_conditions" / "euroc" / "brightness_mean.png",
-                "Mean Brightness by Sequence",
-            ),
-            figure(
-                FIGURES_DIR / "visual_conditions" / "visual_difficulty_ranking.png",
-                "Visual Difficulty Ranking",
-            ),
-        ]
+    visual_figures = figure_gallery_from_folder(
+        FIGURES_DIR / "visual_conditions",
+        "Visual appearance summaries such as blur, texture, brightness, and sequence difficulty.",
+    )
+
+    failure_effect_figures = figure_gallery_from_folder(
+        FIGURES_DIR / "failure_effects",
+        "Visual condition effects on localization error.",
+    )
+
+    motion_effect_figures = figure_gallery_from_folder(
+        FIGURES_DIR / "motion_failure_effects",
+        "Motion condition effects on localization error.",
+    )
+
+    diagnostic_effect_figures = figure_gallery_from_folder(
+        FIGURES_DIR / "diagnostic_effects",
+        "Final diagnostic-effect plots summarizing condition-dependent error changes.",
     )
 
     diagnostic_pngs = collect_pngs(FIGURES_DIR / "generic_failure_diagnostics_clean")
@@ -624,6 +786,7 @@ def main():
       background: #0f172a;
       color: white;
       padding: 26px 20px;
+      overflow-y: auto;
     }}
 
     .sidebar h1 {{
@@ -809,7 +972,7 @@ def main():
 
     .figure-grid {{
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
       gap: 16px;
     }}
 
@@ -829,7 +992,7 @@ def main():
 
     .figure-card img {{
       width: 100%;
-      height: 210px;
+      height: 230px;
       object-fit: contain;
       display: block;
       border-radius: 14px;
@@ -930,12 +1093,17 @@ def main():
     <aside class="sidebar">
       <h1>VO/VIO Report</h1>
       <a href="#overview">Overview</a>
+      <a href="#coverage">Dataset Coverage</a>
+      <a href="#failed">Failed Runs</a>
       <a href="#ranking">Method Ranking</a>
       <a href="#best">Best per Sequence</a>
       <a href="#results">Sequence Results</a>
       <a href="#figures">Benchmark Figures</a>
       <a href="#visual">Visual Conditions</a>
-      <a href="#diagnostics">Diagnostics</a>
+      <a href="#failure-effects">Visual Failure Effects</a>
+      <a href="#motion-effects">Motion Failure Effects</a>
+      <a href="#diagnostic-effects">Diagnostic Effect Figures</a>
+      <a href="#diagnostics">Generic Diagnostics</a>
       <a href="#exports">CSV Exports</a>
       <a href="#notes">Notes</a>
     </aside>
@@ -945,11 +1113,15 @@ def main():
         <h1>VO/VIO Deployment-Oriented Evaluation Report</h1>
         <p>
           Compact benchmark dashboard for trajectory accuracy, runtime efficiency,
-          memory usage, and condition-dependent robustness.
+          memory usage, run validity, and condition-dependent robustness across EuRoC and KITTI.
         </p>
       </div>
 
       {section("overview", "Overview", make_summary_cards(benchmark_df))}
+
+      {section("coverage", "Dataset Coverage and Run Validity", dataset_coverage_table(benchmark_df))}
+
+      {section("failed", "Failed or Invalid Runs", failed_runs_table(benchmark_df))}
 
       {section("ranking", "Method Ranking", method_ranking_table(benchmark_df))}
 
@@ -959,18 +1131,61 @@ def main():
 
       {section("figures", "Key Benchmark Figures", benchmark_figures)}
 
-      {section("visual", "Visual-Condition Summary", visual_conditions_table(visual_df) + visual_figures)}
-
       {section(
-          "diagnostics",
-          "Strongest Condition-Dependent Effects",
-          diagnostics_table(diagnostics_df)
-          + figure_grid(main_diagnostic_figures)
-          + extra_diagnostics_html,
-      )}
+        "visual",
+        "Visual-Condition Summary",
+        details(
+            "Open visual-condition table and figures",
+            visual_conditions_table(visual_df) + visual_figures,
+        ),
+    )}
 
-      {section("exports", "CSV Exports", "<div class='panel'>" + csv_export_links() + "</div>")}
+    {section(
+        "failure-effects",
+        "Visual Failure-Effect Figures",
+        details(
+            "Open visual failure-effect figures",
+            failure_effect_figures,
+        ),
+    )}
 
+    {section(
+        "motion-effects",
+        "Motion Failure-Effect Figures",
+        details(
+           "Open motion failure-effect figures",
+           motion_effect_figures,
+        ),
+    )}
+
+    {section(
+        "diagnostic-effects",
+        "Diagnostic Effect Figures",
+        details(
+            "Open diagnostic-effect figures",
+            diagnostic_effect_figures,
+        ),
+    )}
+
+    {section(
+        "diagnostics",
+        "Strongest Condition-Dependent Effects",
+        details(
+        "Open generic diagnostic table and figures",
+        diagnostics_table(diagnostics_df)
+        + figure_grid(main_diagnostic_figures)
+        + extra_diagnostics_html,
+        ),
+    )}
+
+    {section(
+        "exports",
+       "CSV Exports",
+       details(
+            "Open CSV export links",
+           "<div class='panel'>" + csv_export_links() + "</div>",
+        ),
+    )}
       {section(
           "notes",
           "Interpretation Notes",
@@ -981,7 +1196,8 @@ def main():
             <p><strong>Processed FPS</strong> measures method speed. Higher is better.</p>
             <p><strong>Runtime per frame</strong> is useful because raw runtime depends on sequence length.</p>
             <p><strong>Sim(3)</strong> metrics correct scale and are useful for monocular trajectory-shape comparison.</p>
-            <p><strong>SE(3)</strong> metrics do not correct scale and better reflect metric-scale deployment behavior.</p>
+            <p><strong>SE(3)</strong> metrics do not correct scale and better reflects metric-scale deployment behavior.</p>
+            <p><strong>Failed runs</strong> are preserved because deployment-oriented evaluation should expose invalid or unreliable method outputs.</p>
           </div>
           '''
       )}
