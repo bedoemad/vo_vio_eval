@@ -4,13 +4,14 @@
 
 This project is a deployment-oriented evaluation framework for Visual Odometry (VO) and Visual-Inertial Odometry (VIO) systems.
 
-The framework evaluates VO/VIO methods not only by trajectory accuracy, but also by practical deployment metrics and interpretable failure behavior.
+The framework evaluates VO/VIO methods not only by trajectory accuracy, but also by practical deployment metrics, run validity, and interpretable failure behavior.
 
 It is designed to answer:
 
 ```text
 How accurate is the VO/VIO method?
 How expensive is it to run?
+Does it produce a valid trajectory?
 Under which visual or motion conditions does it fail?
 ```
 
@@ -20,18 +21,22 @@ Under which visual or motion conditions does it fail?
 
 Traditional VO/VIO evaluation often focuses mainly on trajectory accuracy. However, real deployment on constrained platforms such as e-bikes, smartphones, small robots, and embedded systems also requires understanding:
 
-- runtime cost
-- memory usage
-- processed FPS
-- visual conditions where the method fails
-- motion conditions where the method fails
-- sequence-specific robustness issues
+* runtime cost
+* memory usage
+* processed FPS
+* metric-scale behavior
+* whether a produced trajectory is valid
+* visual conditions where the method fails
+* motion conditions where the method fails
+* sequence-specific robustness issues
 
 This framework addresses that gap by jointly evaluating:
 
 ```text
-accuracy + efficiency + visual diagnostics + motion diagnostics + failure effects
+accuracy + efficiency + run validity + visual diagnostics + motion diagnostics + failure effects
 ```
+
+The goal is not only to rank methods by accuracy, but also to understand whether they are practical and reliable under deployment-like conditions.
 
 ---
 
@@ -41,11 +46,11 @@ accuracy + efficiency + visual diagnostics + motion diagnostics + failure effect
 
 The framework computes:
 
-- Absolute Pose Error (APE)
-- Relative Pose Error (RPE)
-- APE normalized by trajectory length
-- Sim(3)-aligned APE/RPE with scale correction
-- SE(3)-aligned APE/RPE without scale correction
+* Absolute Pose Error (APE)
+* Relative Pose Error (RPE)
+* APE normalized by trajectory length
+* Sim(3)-aligned APE/RPE with scale correction
+* SE(3)-aligned APE/RPE without scale correction
 
 APE/RPE are computed using `evo`.
 
@@ -59,15 +64,34 @@ SE(3) metrics are useful for deployment-oriented metric-scale evaluation because
 
 The framework records:
 
-- total runtime
-- peak memory usage
-- average memory usage
-- number of frames
-- runtime per frame
-- processed FPS
-- runtime per meter
+* total runtime
+* peak memory usage
+* average memory usage
+* number of frames
+* runtime per frame
+* processed FPS
+* runtime per meter
 
 This makes runtime analysis more meaningful because raw runtime depends on sequence length.
+
+---
+
+### Run Validity
+
+The framework preserves failed or invalid runs instead of silently ignoring them.
+
+A run can fail because:
+
+```text
+the external method crashed
+no predicted trajectory was produced
+metrics could not be computed
+the predicted trajectory failed validation
+```
+
+This is important for deployment-oriented evaluation because a method should not be considered successful only because it produced an output file.
+
+For some adapters, such as OpenVINS, the framework performs extra trajectory-quality validation to detect unreliable outputs such as unrealistic trajectory jumps.
 
 ---
 
@@ -75,11 +99,11 @@ This makes runtime analysis more meaningful because raw runtime depends on seque
 
 The framework extracts per-frame visual indicators:
 
-- blur score
-- ORB texture score
-- FAST texture score
-- brightness
-- contrast
+* blur score
+* ORB texture score
+* FAST texture score
+* brightness
+* contrast
 
 These are used to analyze whether visual appearance conditions are associated with localization error.
 
@@ -89,12 +113,12 @@ These are used to analyze whether visual appearance conditions are associated wi
 
 The framework computes motion indicators from ground truth:
 
-- frame-to-frame translation
-- translation speed
-- frame-to-frame rotation
-- rotation speed
+* frame-to-frame translation
+* translation speed
+* frame-to-frame rotation
+* rotation speed
 
-These are useful for studying motion-induced VO failures, especially for unstable or fast-moving platforms.
+These are useful for studying motion-induced VO/VIO failures, especially for unstable, fast-moving, or difficult trajectories.
 
 ---
 
@@ -142,6 +166,8 @@ MH_04_difficult
 MH_05_difficult
 ```
 
+EuRoC is used for both VO and VIO evaluation because it provides synchronized camera, IMU, and ground-truth trajectory data.
+
 ---
 
 ### KITTI Odometry
@@ -159,7 +185,12 @@ kitti_06
 kitti_07
 kitti_08
 kitti_09
+kitti_10
 ```
+
+KITTI sequence `10` is included because it has ground-truth poses in the KITTI odometry benchmark.
+
+KITTI is mainly used for outdoor driving-style VO evaluation and long-trajectory deployment analysis.
 
 ---
 
@@ -169,22 +200,27 @@ Current method adapters include:
 
 ```text
 orbslam3_mono
+orbslam3_euroc_mono_inertial
 orbslam3_kitti_mono
 dpvo_euroc
 dpvo_kitti
+openvins_euroc
 example_adapter
 ```
 
 ### ORB-SLAM3
 
-ORB-SLAM3 is integrated through wrapper scripts in `examples/`.
+ORB-SLAM3 is integrated through wrapper scripts in `examples/` and adapters.
 
 Supported modes:
 
 ```text
 ORB-SLAM3 monocular on EuRoC
+ORB-SLAM3 monocular-inertial on EuRoC
 ORB-SLAM3 monocular on KITTI
 ```
+
+The monocular-inertial EuRoC mode allows comparison with other VIO methods such as OpenVINS.
 
 ### DPVO
 
@@ -199,6 +235,22 @@ DPVO on KITTI
 
 DPVO requires a separate conda environment and a local DPVO installation.
 
+DPVO outputs frame-indexed trajectories, so the framework adapter converts frame IDs to dataset timestamps before evaluation.
+
+### OpenVINS
+
+OpenVINS is integrated as a VIO method on EuRoC using ROS Noetic and EuRoC bag files.
+
+Supported mode:
+
+```text
+OpenVINS monocular-inertial on EuRoC
+```
+
+The OpenVINS adapter records the `/ov_msckf/poseimu` topic and converts it to TUM trajectory format.
+
+The adapter also performs trajectory-quality validation. This means unreliable outputs, such as trajectories with unrealistic jumps, are marked as failed instead of being treated as valid benchmark results.
+
 ### Example Adapter
 
 The `example_adapter` copies the ground truth as a fake prediction. It is only used to test the adapter interface.
@@ -212,7 +264,8 @@ vo_vio_eval/
 ├── adapters/
 │   ├── example_adapter.py
 │   ├── run_dpvo_euroc.py
-│   └── run_dpvo_kitti.py
+│   ├── run_dpvo_kitti.py
+│   └── run_openvins_euroc.py
 │
 ├── configs/
 │   ├── benchmark_presets.json
@@ -224,13 +277,15 @@ vo_vio_eval/
 │   └── local_paths.json
 │
 ├── docs/
+│   ├── ARCHITECTURE.md
 │   └── MODEL_ADAPTER_GUIDE.md
 │
 ├── examples/
 │   ├── dummy_vo.py
 │   ├── noisy_dummy_vo.py
 │   ├── run_orbslam3_mono.sh
-│   └── run_orbslam3_kitti_mono.sh
+│   ├── run_orbslam3_kitti_mono.sh
+│   └── run_orbslam3_euroc_mono_inertial.sh
 │
 ├── src/
 │   ├── main.py
@@ -241,7 +296,10 @@ vo_vio_eval/
 │   ├── ensure_visual_conditions.py
 │   ├── analyze_motion_conditions.py
 │   ├── run_generic_failure_diagnostics.py
+│   ├── add_motion_to_error_correlation.py
+│   ├── binned_motion_failure_analysis.py
 │   ├── generate_report.py
+│   ├── generate_filtered_report.py
 │   ├── summarize_results.py
 │   ├── create_final_benchmark_table.py
 │   ├── create_final_visual_condition_table.py
@@ -252,8 +310,10 @@ vo_vio_eval/
 │   ├── plot_final_visual_condition_figures.py
 │   ├── plot_final_failure_effect_figures.py
 │   ├── plot_motion_failure_effects.py
+│   ├── plot_final_diagnostic_effects.py
 │   └── plot_generic_failure_diagnostics.py
 │
+├── tests/
 ├── requirements.txt
 ├── README.md
 └── .gitignore
@@ -264,6 +324,7 @@ Generated outputs are saved under:
 ```text
 results/
 ```
+
 See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the framework architecture.
 
 ---
@@ -283,16 +344,17 @@ Install Python dependencies:
 pip install -r requirements.txt
 ```
 
-Typical `requirements.txt`:
+Typical `requirements.txt` dependencies include:
 
 ```text
 numpy
 pandas
 matplotlib
-opencv-python
+opencv-python-headless
 psutil
 evo
 scipy
+pytest
 ```
 
 Check that `evo` is installed:
@@ -300,6 +362,15 @@ Check that `evo` is installed:
 ```bash
 evo_ape --help
 evo_rpe --help
+```
+
+Some method adapters require additional external installations:
+
+```text
+ORB-SLAM3
+DPVO
+ROS Noetic
+OpenVINS
 ```
 
 ---
@@ -331,6 +402,7 @@ Example:
 ```json
 {
   "EUROC_ROOT": "/path/to/euroc",
+  "EUROC_BAG_ROOT": "/path/to/euroc_bags",
   "KITTI_COLOR_ROOT": "/path/to/data_odometry_color/dataset",
   "KITTI_POSES_ROOT": "/path/to/data_odometry_poses/dataset/poses",
   "ORB_SLAM3_ROOT": "/path/to/ORB_SLAM3",
@@ -343,6 +415,7 @@ The framework supports placeholders such as:
 ```text
 ${PROJECT_ROOT}
 ${EUROC_ROOT}
+${EUROC_BAG_ROOT}
 ${KITTI_COLOR_ROOT}
 ${KITTI_POSES_ROOT}
 ${ORB_SLAM3_ROOT}
@@ -390,40 +463,36 @@ The setup checker reports:
 
 ---
 
----
+## 9. Testing
 
-## Testing
+The framework includes a lightweight test suite for core framework behavior, including:
 
-The framework includes a lightweight test suite for core configuration loading, config lookup helpers, metric alignment modes, and timestamp-based diagnostic matching.
+```text
+configuration loading
+method and sequence lookup
+metric alignment modes
+timestamp-based diagnostic matching
+skip-run result reuse
+report and utility behavior
+```
 
 Install dependencies:
 
 ```bash
 pip install -r requirements.txt
 ```
+
 Run all tests:
-
-pytest
-
-Expected output:
-
-11 passed
-
-The tests currently check:
-
-method and sequence configuration loading
-method and sequence lookup behavior
-Sim(3) and SE(3) metric alignment flags
-timestamp tolerance behavior for diagnostic nearest-neighbor matching
-
-Then run:
 
 ```bash
 pytest
 ```
+
+Expected output should show all tests passing.
+
 ---
 
-## 9. Dataset Preparation
+## 10. Dataset Preparation
 
 The framework can automatically prepare TUM-format ground-truth files.
 
@@ -454,25 +523,25 @@ python src/voeval.py prepare --dataset kitti
 Prepare specific sequences:
 
 ```bash
-python src/voeval.py prepare --sequences euroc_mh01 kitti_04
+python src/voeval.py prepare --sequences euroc_mh01 kitti_04 kitti_10
 ```
 
 Force regeneration:
 
 ```bash
-python src/voeval.py prepare --sequences kitti_04 --force
+python src/voeval.py prepare --sequences kitti_10 --force
 ```
 
 The preparation script creates ground-truth files such as:
 
 ```text
-data/kitti/poses/04_tum.txt
+data/kitti/poses/10_tum.txt
 data/euroc/MH_01_easy/mav0/state_groundtruth_estimate0/data_tum.txt
 ```
 
 ---
 
-## 10. Method Configuration
+## 11. Method Configuration
 
 Methods are defined in:
 
@@ -514,7 +583,7 @@ timestamp tx ty tz qx qy qz qw
 
 ---
 
-## 11. Dataset Sequence Configuration
+## 12. Dataset Sequence Configuration
 
 Sequences are defined in:
 
@@ -538,17 +607,17 @@ Example KITTI entry:
 
 ```json
 {
-  "name": "kitti_04",
+  "name": "kitti_10",
   "dataset": "KITTI",
-  "path": "${KITTI_COLOR_ROOT}/sequences/04",
-  "groundtruth": "${PROJECT_ROOT}/data/kitti/poses/04_tum.txt",
+  "path": "${KITTI_COLOR_ROOT}/sequences/10",
+  "groundtruth": "${PROJECT_ROOT}/data/kitti/poses/10_tum.txt",
   "camera_topic_or_folder": "image_2"
 }
 ```
 
 ---
 
-## 12. CLI Usage
+## 13. CLI Usage
 
 The user-facing CLI is:
 
@@ -559,25 +628,28 @@ python src/voeval.py <command>
 Available commands:
 
 ```text
-check       check setup, configs, paths, and tools
-prepare     prepare dataset ground-truth files
-run         run full benchmark automation
-run-one          run one method on one sequence
-summarize   regenerate benchmark summary tables
-visual      generate visual-condition files
-motion      generate motion-condition files
-diagnose    run generic method-agnostic failure diagnostics
-plot        regenerate plots
-report      generate HTML report
-``` 
+check              check setup, configs, paths, and tools
+prepare            prepare dataset ground-truth files
+run                run benchmark automation
+run-one            run one method on one sequence
+summarize          regenerate benchmark summary tables
+visual             generate visual-condition files
+motion             generate motion-condition files
+diagnose           run generic method-agnostic failure diagnostics
+plot               regenerate plots
+report             generate the general HTML report
+report-filtered    generate a focused filtered HTML report
+```
+
 The diagnostic stage supports configurable timestamp matching tolerance:
 
 ```bash
 python src/run_generic_failure_diagnostics.py --timestamp-tolerance 0.05
 ```
+
 ---
 
-## 13. Quickstart
+## 14. Quickstart
 
 ### 1. Configure local paths
 
@@ -605,8 +677,7 @@ python src/voeval.py run \
   --methods example_adapter \
   --sequences euroc_mh01 \
   --skip-existing \
-  --skip-failure \
-  --skip-motion
+  --allow-fail
 ```
 
 ### 5. Generate report
@@ -623,12 +694,18 @@ results/report.html
 
 ---
 
-## 14. Running a Single Method
+## 15. Running a Single Method
 
 Run one method on one sequence:
 
 ```bash
 python src/main.py --method orbslam3_mono --sequence euroc_mh01 --metrics
+```
+
+Run ORB-SLAM3 monocular-inertial on one EuRoC sequence:
+
+```bash
+python src/main.py --method orbslam3_euroc_mono_inertial --sequence euroc_mh01 --metrics
 ```
 
 Run DPVO on one EuRoC sequence:
@@ -640,13 +717,19 @@ python src/main.py --method dpvo_euroc --sequence euroc_mh01 --metrics
 Run DPVO on one KITTI sequence:
 
 ```bash
-python src/main.py --method dpvo_kitti --sequence kitti_04 --metrics
+python src/main.py --method dpvo_kitti --sequence kitti_10 --metrics
+```
+
+Run OpenVINS on one EuRoC sequence:
+
+```bash
+python src/main.py --method openvins_euroc --sequence euroc_mh01 --metrics
 ```
 
 If a prediction already exists and you only want to recompute metrics:
 
 ```bash
-python src/main.py --method dpvo_kitti --sequence kitti_04 --skip-run --metrics
+python src/main.py --method dpvo_kitti --sequence kitti_10 --skip-run --metrics
 ```
 
 The same single-method workflow can also be run through the main CLI:
@@ -659,6 +742,7 @@ python src/voeval.py run-one \
 ```
 
 To recompute metrics for an existing prediction without rerunning the model:
+
 ```bash
 python src/voeval.py run-one \
   --method orbslam3_euroc_mono_inertial \
@@ -669,18 +753,9 @@ python src/voeval.py run-one \
 
 When using `--skip-run --metrics`, the framework reuses the existing `run_result.json` and recomputes metrics without overwriting the original runtime and memory measurements.
 
-Example:
-
-```bash
-python src/main.py \
-  --method orbslam3_euroc_mono_inertial \
-  --sequence euroc_mh01 \
-  --skip-run \
-  --metrics
-```
 ---
 
-## 15. Full Automation
+## 16. Full Automation
 
 The full automation script is:
 
@@ -714,7 +789,7 @@ Run using explicit methods and sequences:
 ```bash
 python src/voeval.py run \
   --methods dpvo_kitti \
-  --sequences kitti_04 kitti_05 \
+  --sequences kitti_04 kitti_05 kitti_10 \
   --allow-fail
 ```
 
@@ -737,7 +812,7 @@ python src/voeval.py run \
 
 ---
 
-## 16. Benchmark Presets
+## 17. Benchmark Presets
 
 Presets are defined in:
 
@@ -745,7 +820,7 @@ Presets are defined in:
 configs/benchmark_presets.json
 ```
 
-Example:
+Example KITTI preset:
 
 ```json
 {
@@ -761,7 +836,8 @@ Example:
       "kitti_06",
       "kitti_07",
       "kitti_08",
-      "kitti_09"
+      "kitti_09",
+      "kitti_10"
     ]
   }
 }
@@ -771,15 +847,18 @@ Recommended presets:
 
 ```text
 euroc_orbslam3
+euroc_openvins
 kitti_orbslam3
 dpvo_euroc
 dpvo_kitti
 example_adapter_test
 ```
 
+The preset system makes it possible to run repeatable experiments without manually listing methods and sequences every time.
+
 ---
 
-## 17. Output Structure
+## 18. Output Structure
 
 Each run produces:
 
@@ -790,7 +869,7 @@ results/<method>/<sequence>/
 Example:
 
 ```text
-results/dpvo_kitti/kitti_04/
+results/dpvo_kitti/kitti_10/
 ├── predicted_trajectory.txt
 ├── predicted_trajectory_raw.txt
 ├── run_result.json
@@ -830,7 +909,7 @@ results/report.html
 
 ---
 
-## 18. Final Tables
+## 19. Final Tables
 
 Important final tables include:
 
@@ -849,11 +928,11 @@ The most general diagnostic table is:
 results/final_tables/all_methods_condition_effect_summary.csv
 ```
 
-This includes method-generic diagnostics for ORB-SLAM3, DPVO, and future adapters.
+This includes method-generic diagnostics for ORB-SLAM3, DPVO, OpenVINS, and future adapters.
 
 ---
 
-## 19. Final Figures
+## 20. Final Figures
 
 Important final figure folders include:
 
@@ -862,6 +941,7 @@ results/final_figures/benchmark_clean/
 results/final_figures/visual_conditions/
 results/final_figures/failure_effects/
 results/final_figures/motion_failure_effects/
+results/final_figures/diagnostic_effects/
 results/final_figures/generic_failure_diagnostics_clean/
 ```
 
@@ -869,15 +949,15 @@ Use the `benchmark_clean` and `generic_failure_diagnostics_clean` folders for pr
 
 ---
 
-## 20. HTML Report
+## 21. HTML Report
 
-Generate the report:
+Generate the general report:
 
 ```bash
 python src/voeval.py report
 ```
 
-or:
+or directly:
 
 ```bash
 python src/generate_report.py
@@ -889,18 +969,25 @@ Output:
 results/report.html
 ```
 
-The HTML report is generated as a compact dashboard. It includes:
+The HTML report is generated as a compact deployment-oriented dashboard. It includes:
 
-- overview cards
-- method ranking
-- best method per sequence
-- searchable sequence-level results
-- key benchmark figures
-- visual-condition summaries
-- diagnostic-effect summaries
-- links to final CSV tables
+* overview cards
+* dataset coverage and run-validity summary
+* failed or invalid run table
+* method ranking
+* best method per sequence
+* searchable sequence-level results
+* benchmark figures across available datasets
+* visual-condition summaries
+* visual failure-effect figures
+* motion failure-effect figures
+* diagnostic-effect figures
+* generic diagnostic summaries
+* links to final CSV tables
 
-## Filtered Reports
+Heavy diagnostic sections are collapsible so the report remains readable while still preserving detailed evidence for analysis and thesis discussion.
+
+### Filtered Reports
 
 The framework can generate focused dashboard reports for a subset of datasets, methods, or sequences without moving or deleting result folders.
 
@@ -912,30 +999,47 @@ python src/generate_filtered_report.py \
   --methods orbslam3_euroc_mono_inertial \
   --name euroc_vio
 ```
-  Open:
 
+Open:
+
+```text
 results/reports/euroc_vio/report.html
+```
 
 Generate a EuRoC comparison report:
+
 ```bash
 python src/generate_filtered_report.py \
   --dataset EuRoC \
-  --methods orbslam3_euroc_mono_inertial orbslam3_mono dpvo_euroc \
+  --methods orbslam3_euroc_mono_inertial orbslam3_mono dpvo_euroc openvins_euroc \
   --name euroc_comparison
 ```
+
 Open:
 
+```text
 results/reports/euroc_comparison/report.html
+```
+
+The same filtered report can also be generated through the CLI if configured:
+
+```bash
+python src/voeval.py report-filtered \
+  --dataset EuRoC \
+  --methods orbslam3_euroc_mono_inertial orbslam3_mono dpvo_euroc openvins_euroc \
+  --name euroc_comparison
+```
 
 Filtered reports also save filtered CSV files:
 
+```text
 results/reports/<name>/benchmark_filtered.csv
 results/reports/<name>/visual_conditions_filtered.csv
-
+```
 
 ---
 
-## 21. Adding a New VO/VIO Model
+## 22. Adding a New VO/VIO Model
 
 The framework is method-agnostic.
 
@@ -988,7 +1092,7 @@ python src/voeval.py run \
 
 ---
 
-## 22. Adapter Guide
+## 23. Adapter Guide
 
 See:
 
@@ -1006,14 +1110,16 @@ activating the correct environment
 finding the model's raw output file
 converting KITTI pose matrices to TUM
 converting frame IDs to timestamps
+recording ROS topics
 copying the final trajectory to output_path
+validating model-specific trajectory output
 ```
 
 The framework handles the rest.
 
 ---
 
-## 23. DPVO Notes
+## 24. DPVO Notes
 
 DPVO requires a separate conda environment.
 
@@ -1035,7 +1141,7 @@ times.txt
 
 ---
 
-## 24. ORB-SLAM3 Notes
+## 25. ORB-SLAM3 Notes
 
 ORB-SLAM3 must be installed separately.
 
@@ -1050,13 +1156,47 @@ Examples:
 ```text
 examples/run_orbslam3_mono.sh
 examples/run_orbslam3_kitti_mono.sh
+examples/run_orbslam3_euroc_mono_inertial.sh
 ```
 
-The wrappers run ORB-SLAM3 and convert/copy the final trajectory into the framework output location.
+The wrappers run ORB-SLAM3 and convert or copy the final trajectory into the framework output location.
 
 ---
 
-## 25. Interpretation Notes
+## 26. OpenVINS Notes
+
+OpenVINS must be installed separately in a ROS Noetic catkin workspace.
+
+The framework adapter runs OpenVINS on EuRoC bag files and records the following topic:
+
+```text
+/ov_msckf/poseimu
+```
+
+This topic is used because it provides the pose estimate suitable for trajectory evaluation.
+
+The OpenVINS adapter converts the recorded trajectory to TUM format:
+
+```text
+timestamp tx ty tz qx qy qz qw
+```
+
+The adapter also performs trajectory-quality validation. Validation checks include:
+
+```text
+minimum number of poses
+minimum trajectory duration
+unrealistic frame-to-frame jumps
+suspicious trajectory length behavior
+```
+
+If a trajectory fails validation, the run is marked as failed or unreliable. This is intentional: deployment-oriented evaluation should detect invalid outputs instead of reporting misleading APE/RPE values.
+
+This behavior is especially useful for difficult VIO sequences where a model may produce a trajectory file even though the trajectory is not valid for evaluation.
+
+---
+
+## 27. Interpretation Notes
 
 ### Sim(3) vs SE(3) Metrics
 
@@ -1064,13 +1204,16 @@ For monocular VO, scale may be ambiguous. Therefore, the framework reports Sim(3
 
 For deployment-oriented evaluation, the framework also reports SE(3)-aligned metrics without scale correction. These better reflect whether the method preserves metric scale in practical use.
 
-In the summary tables, legacy columns such as `ape_rmse_m` and `rpe_rmse_m` correspond to the Sim(3) metrics for backward compatibility. The explicit columns are:
+In the summary tables, legacy columns such as `ape_rmse_m` and `rpe_rmse_m` correspond to the Sim(3) metrics for backward compatibility.
+
+The explicit metric columns are:
 
 ```text
 ape_sim3_rmse_m
 rpe_sim3_rmse_m
 ape_se3_rmse_m
 rpe_se3_rmse_m
+```
 
 ### Raw Runtime
 
@@ -1101,7 +1244,10 @@ For appearance conditions, the framework compares difficult/easy bins such as:
 ```text
 low texture error - high texture error
 low blur score error - high blur score error
+low brightness error - high brightness error
 ```
+
+These comparisons help identify visual conditions that are associated with increased trajectory error.
 
 ### Motion Failure Effects
 
@@ -1113,9 +1259,24 @@ high-motion error - low-motion error
 
 Positive values generally mean the harder condition increased error.
 
+### Failed or Invalid Runs
+
+Failed or invalid runs are preserved in the results because deployment-oriented evaluation should expose robustness problems.
+
+A run can fail because:
+
+```text
+the external method crashed
+no predicted trajectory was produced
+metrics could not be computed
+the predicted trajectory failed validation
+```
+
+This is useful because a method should not be considered successful only because it produced an output file.
+
 ---
 
-## 26. GitHub Notes
+## 28. GitHub Notes
 
 Do not commit datasets, model weights, local machine paths, or generated results.
 
@@ -1170,27 +1331,33 @@ configs/methods.example.json
 
 ---
 
-## 27. Current Contribution
+## 29. Current Contribution
 
 This project contributes a reusable deployment-oriented VO/VIO evaluation framework that supports:
 
-- configurable datasets
-- configurable methods
-- portable local paths
-- external model adapters
-- automatic ground-truth preparation
-- automatic visual-condition generation
-- automatic motion-condition generation
-- automated benchmark execution
-- APE/RPE evaluation
-- runtime and memory profiling
-- normalized efficiency metrics
-- visual-condition diagnostics
-- motion-condition diagnostics
-- method-generic failure analysis
-- final CSV tables
-- final plots
-- HTML report generation
+* configurable datasets
+* configurable methods
+* portable local paths
+* external model adapters
+* automatic ground-truth preparation
+* automatic visual-condition generation
+* automatic motion-condition generation
+* automated benchmark execution
+* APE/RPE evaluation
+* Sim(3) and SE(3) metric reporting
+* runtime and memory profiling
+* normalized efficiency metrics
+* visual-condition diagnostics
+* motion-condition diagnostics
+* method-generic failure analysis
+* failed and invalid trajectory detection
+* validated VIO evaluation with OpenVINS on EuRoC
+* ORB-SLAM3 monocular-inertial evaluation on EuRoC
+* KITTI odometry support through sequence 10
+* final CSV tables
+* final plots
+* compact collapsible HTML report generation
+* filtered HTML reports for focused comparisons
 
 In short:
 
@@ -1201,19 +1368,19 @@ but also how expensive it is and under what conditions it fails.
 
 ---
 
-## 28. Planned Extensions
+## 30. Planned Extensions
 
 Possible future extensions:
 
-- ORB-SLAM3 stereo
-- OpenVINS
-- MotionHint
-- additional datasets
-- feature coverage metrics
-- optical-flow stability metrics
-- dark/bright pixel ratios
-- dynamic-object analysis
-- artificial degradation experiments
-- Docker support
-- sample lightweight demo dataset
-- interactive dashboard
+* ORB-SLAM3 stereo
+* stereo or RGB-D VIO methods
+* MotionHint
+* additional datasets
+* feature coverage metrics
+* optical-flow stability metrics
+* dark/bright pixel ratios
+* dynamic-object analysis
+* artificial degradation experiments
+* Docker support
+* sample lightweight demo dataset
+* interactive dashboard
