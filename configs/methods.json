@@ -39,6 +39,12 @@
   "name": "orbslam3_euroc_mono_inertial",
   "command_template": "python adapters/run_orbslam3_euroc_mono_inertial.py --sequence-name {sequence_name} --sequence {sequence_path} --output {output_path}",
   "output_trajectory": "{output_path}"
+},
+{
+  "name": "openvins_euroc",
+  "display_name": "OpenVINS",
+  "command_template": "python adapters/run_openvins_euroc.py --sequence-name {sequence_name} --output {output_path}",
+  "output_trajectory": "{output_path}"
 }
     
   ]

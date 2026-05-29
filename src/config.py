@@ -4,12 +4,14 @@ from typing import Any, Dict, List, Optional
 from config_utils import load_json, resolve_sequence_paths
 
 
+from typing import Optional
+
 @dataclass
 class MethodConfig:
     name: str
     command_template: str
     output_trajectory: str
-
+    display_name: Optional[str] = None
 
 @dataclass
 class SequenceConfig:

@@ -85,5 +85,15 @@
     "euroc_mh04",
     "euroc_mh05"
   ]
+},
+"euroc_openvins": {
+  "methods": ["openvins_euroc"],
+  "sequences": [
+    "euroc_mh01",
+    "euroc_mh02",
+    "euroc_mh03",
+    "euroc_mh04",
+    "euroc_mh05"
+  ]
 }
 }

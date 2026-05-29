@@ -173,9 +173,8 @@ def main() -> None:
             result = make_skip_run_result(method, sequence, result_dir)
             print("No existing run_result.json found; using skip-run placeholder result.")
     else:
-        runner = MethodRunner(method, sequence, result_dir)
-        result = runner.run()
-        save_run_result(result)
+        runner = MethodRunner(results_root=results_root)
+        result = runner.run(method, sequence)
 
     print(json.dumps(asdict(result), indent=2))
 
