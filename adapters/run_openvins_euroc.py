@@ -25,6 +25,14 @@ BAG_FILES = {
     "euroc_mh05": "MH_05_difficult.bag",
 }
 
+GT_FILES = {
+    "euroc_mh01": "MH_01_easy/mav0/state_groundtruth_estimate0/data_tum.txt",
+    "euroc_mh02": "MH_02_easy/mav0/state_groundtruth_estimate0/data_tum.txt",
+    "euroc_mh03": "MH_03_medium/mav0/state_groundtruth_estimate0/data_tum.txt",
+    "euroc_mh04": "MH_04_difficult/mav0/state_groundtruth_estimate0/data_tum.txt",
+    "euroc_mh05": "MH_05_difficult/mav0/state_groundtruth_estimate0/data_tum.txt",
+}
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Run OpenVINS on a EuRoC ROS bag.")
@@ -107,6 +115,145 @@ def convert_openvins_csv_to_tum(input_csv: Path, output_tum: Path) -> None:
     )
 
     print(f"Wrote {len(out)} OpenVINS poses to {output_tum}")
+
+
+def trajectory_stats(tum_path: Path) -> dict:
+    poses = []
+
+    with tum_path.open("r", encoding="utf-8") as f:
+        for line in f:
+            parts = line.strip().split()
+
+            if len(parts) < 4:
+                continue
+
+            try:
+                t = float(parts[0])
+                x = float(parts[1])
+                y = float(parts[2])
+                z = float(parts[3])
+            except ValueError:
+                continue
+
+            poses.append((t, x, y, z))
+
+    if len(poses) < 2:
+        return {
+            "poses": len(poses),
+            "duration": 0.0,
+            "length": 0.0,
+            "max_step": 0.0,
+        }
+
+    length = 0.0
+    max_step = 0.0
+
+    for previous, current in zip(poses[:-1], poses[1:]):
+        _, x0, y0, z0 = previous
+        _, x1, y1, z1 = current
+
+        step = ((x1 - x0) ** 2 + (y1 - y0) ** 2 + (z1 - z0) ** 2) ** 0.5
+        length += step
+        max_step = max(max_step, step)
+
+    return {
+        "poses": len(poses),
+        "duration": poses[-1][0] - poses[0][0],
+        "length": length,
+        "max_step": max_step,
+    }
+
+
+def validate_openvins_run(
+    sequence_name: str,
+    result_dir: Path,
+    output_path: Path,
+) -> None:
+    launch_log = result_dir / "openvins_launch.log"
+
+    if launch_log.exists():
+        text = launch_log.read_text(errors="ignore").lower()
+
+        fatal_patterns = [
+            "segmentation fault",
+        ]
+
+        warning_patterns = [
+            "terminate called",
+            "boost::",
+            "mutex lock failed",
+        ]
+
+        for pattern in fatal_patterns:
+            if pattern in text:
+                raise RuntimeError(
+                    f"OpenVINS log contains fatal pattern '{pattern}'. "
+                    f"Check {launch_log}"
+                )
+
+        for pattern in warning_patterns:
+            if pattern in text:
+                print(
+                    f"Warning: OpenVINS log contains shutdown/runtime warning "
+                    f"'{pattern}'. Continuing because trajectory quality checks passed."
+                )
+
+    pred_stats = trajectory_stats(output_path)
+
+    if pred_stats["poses"] < 500:
+        raise RuntimeError(
+            f"OpenVINS produced too few poses: {pred_stats['poses']}. "
+            "This likely indicates failed or very late initialization."
+        )
+
+    if pred_stats["duration"] < 10.0:
+        raise RuntimeError(
+            f"OpenVINS trajectory duration is too short: {pred_stats['duration']:.2f}s."
+        )
+
+    if pred_stats["max_step"] > 5.0:
+        raise RuntimeError(
+            f"OpenVINS trajectory has an unrealistic max step: "
+            f"{pred_stats['max_step']:.2f} m."
+        )
+
+    gt_rel = GT_FILES.get(sequence_name)
+
+    if not gt_rel:
+        return
+
+    gt_path = PROJECT_ROOT / "data" / "euroc" / gt_rel
+
+    if not gt_path.exists():
+        print(f"Warning: ground truth not found for OpenVINS validation: {gt_path}")
+        return
+
+    gt_stats = trajectory_stats(gt_path)
+
+    if gt_stats["duration"] <= 0 or gt_stats["length"] <= 0:
+        print(f"Warning: invalid ground-truth stats for {gt_path}")
+        return
+
+    duration_ratio = pred_stats["duration"] / gt_stats["duration"]
+    length_ratio = pred_stats["length"] / gt_stats["length"]
+
+    print("OpenVINS validation stats:")
+    print(f"  poses: {pred_stats['poses']}")
+    print(f"  duration ratio: {duration_ratio:.3f}")
+    print(f"  length ratio: {length_ratio:.3f}")
+    print(f"  max step: {pred_stats['max_step']:.3f} m")
+
+    if duration_ratio < 0.35:
+        raise RuntimeError(
+            f"OpenVINS covered too little of the sequence: "
+            f"{duration_ratio:.3f} of ground-truth duration."
+        )
+
+    if length_ratio < 0.15 or length_ratio > 3.0:
+        raise RuntimeError(
+            f"OpenVINS trajectory length ratio is suspicious: {length_ratio:.3f}. "
+            "This likely indicates failed initialization, scale explosion, or bad tracking."
+        )
 
 
 def main():
@@ -222,7 +369,7 @@ def main():
     raw_copy.write_bytes(raw_csv.read_bytes())
 
     convert_openvins_csv_to_tum(raw_csv, output_path)
-
+    validate_openvins_run(sequence_name, result_dir, output_path)
     print(f"Saved raw OpenVINS CSV to: {raw_copy}")
     print(f"Saved framework trajectory to: {output_path}")
 
