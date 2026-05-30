@@ -4,14 +4,14 @@
 
 This project is a deployment-oriented evaluation framework for Visual Odometry (VO) and Visual-Inertial Odometry (VIO) systems.
 
-The framework evaluates VO/VIO methods not only by trajectory accuracy, but also by practical deployment metrics, run validity, and interpretable failure behavior.
+The framework evaluates VO/VIO methods not only by trajectory accuracy, but also by practical deployment metrics, run success/failure status, and interpretable failure behavior.
 
 It is designed to answer:
 
 ```text
 How accurate is the VO/VIO method?
 How expensive is it to run?
-Does it produce a valid trajectory?
+Does it produce an evaluable trajectory, and can invalid or failed runs be detected?
 Under which visual or motion conditions does it fail?
 ```
 
