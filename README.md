@@ -383,8 +383,6 @@ Dataset and model paths vary from one machine to another. Therefore, this framew
 configs/local_paths.json
 ```
 
-This file should not be committed to GitHub.
-
 First copy the example:
 
 ```bash
