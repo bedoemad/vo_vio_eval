@@ -691,7 +691,7 @@ Fix:
 
 ## 20. Adding a New Method: Checklist
 
-Use this checklist when adding a new VO/VIO model.
+Use this current checklist when adding a new VO/VIO model.
 
 ```text
 [ ] Create adapter script in adapters/
