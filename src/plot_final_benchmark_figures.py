@@ -12,9 +12,18 @@ METHODS_CONFIG = Path("configs/methods.json")
 
 
 METRICS = {
-    "ape_rmse_m": "APE RMSE (m)",
-    "rpe_rmse_m": "RPE RMSE (m)",
-    "ape_rmse_percent_of_path": "APE RMSE (% of path)",
+    # Legacy/default columns. These correspond to Sim(3) in the current summary.
+    "ape_rmse_m": "APE Sim(3) RMSE (m)",
+    "rpe_rmse_m": "RPE Sim(3) RMSE (m)",
+
+    # Explicit alignment-aware metrics.
+    "ape_sim3_rmse_m": "APE Sim(3) RMSE (m)",
+    "rpe_sim3_rmse_m": "RPE Sim(3) RMSE (m)",
+    "ape_se3_rmse_m": "APE SE(3) RMSE (m)",
+    "rpe_se3_rmse_m": "RPE SE(3) RMSE (m)",
+
+    # Normalized accuracy and efficiency.
+    "ape_rmse_percent_of_path": "APE Sim(3) RMSE (% of path)",
     "runtime_sec": "Runtime (s)",
     "runtime_per_frame_sec": "Runtime per Frame (s)",
     "processed_fps": "Processed FPS",

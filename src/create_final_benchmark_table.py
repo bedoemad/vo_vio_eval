@@ -32,8 +32,16 @@ cols = [
     "success",
     "num_frames",
     "trajectory_length_m",
+     # Legacy/default accuracy columns.
+    # These are kept for backward compatibility and currently correspond to Sim(3).
     "ape_rmse_m",
     "rpe_rmse_m",
+
+    # Explicit alignment-aware metrics.
+    "ape_sim3_rmse_m",
+    "rpe_sim3_rmse_m",
+    "ape_se3_rmse_m",
+    "rpe_se3_rmse_m",
     "ape_rmse_percent_of_path",
     "runtime_sec",
     "runtime_per_frame_sec",

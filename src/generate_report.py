@@ -312,7 +312,7 @@ def method_ranking_table(df: pd.DataFrame) -> str:
     return f"""
     <div class="panel">
       <p class="note">
-        Methods are ranked by mean APE RMSE. Lower APE/RPE is better; higher FPS is better.
+        Methods are ranked by mean APE Sim(3) RMSE. Sim(3) evaluates trajectory shape after scale correction. SE(3) values in the sequence table reflect metric-scale deployment behavior.
       </p>
       <div class="table-scroll">
         <table>
@@ -379,9 +379,9 @@ def best_per_sequence_table(df: pd.DataFrame) -> str:
               <th>Dataset</th>
               <th>Sequence</th>
               <th>Difficulty</th>
-              <th>Best method by APE</th>
-              <th>APE RMSE (m)</th>
-              <th>RPE RMSE (m)</th>
+              <th>Best method by APE Sim(3)</th>
+              <th>APE Sim(3) RMSE (m)</th>
+              <th>RPE Sim(3) RMSE (m)</th>
               <th>FPS</th>
             </tr>
           </thead>
@@ -399,18 +399,27 @@ def sequence_results_table(df: pd.DataFrame) -> str:
         return "<div class='panel'><p class='empty'>No sequence-level results found.</p></div>"
 
     columns = [
-        "dataset",
-        "sequence",
-        "difficulty",
-        "method",
-        "success",
-        "ape_rmse_m",
-        "rpe_rmse_m",
-        "ape_rmse_percent_of_path",
-        "runtime_sec",
-        "runtime_per_frame_sec",
-        "processed_fps",
-        "peak_memory_mb",
+      "dataset",
+      "sequence",
+      "difficulty",
+      "method",
+      "success",
+
+      # Default/legacy Sim(3) columns.
+      "ape_rmse_m",
+      "rpe_rmse_m",
+
+      # Explicit alignment-aware metrics.
+      "ape_sim3_rmse_m",
+      "rpe_sim3_rmse_m",
+      "ape_se3_rmse_m",
+      "rpe_se3_rmse_m",
+
+      "ape_rmse_percent_of_path",
+      "runtime_sec",
+      "runtime_per_frame_sec",
+      "processed_fps",
+      "peak_memory_mb",
     ]
 
     columns = [col for col in columns if col in df.columns]
@@ -432,6 +441,10 @@ def sequence_results_table(df: pd.DataFrame) -> str:
               <td>{badge(row.get("success", True))}</td>
               <td>{fmt(row.get("ape_rmse_m"), 4)}</td>
               <td>{fmt(row.get("rpe_rmse_m"), 4)}</td>
+              <td>{fmt(row.get("ape_sim3_rmse_m"), 4)}</td>
+              <td>{fmt(row.get("rpe_sim3_rmse_m"), 4)}</td>
+              <td>{fmt(row.get("ape_se3_rmse_m"), 4)}</td>
+              <td>{fmt(row.get("rpe_se3_rmse_m"), 4)}</td>
               <td>{fmt(row.get("ape_rmse_percent_of_path"), 3)}</td>
               <td>{fmt(row.get("runtime_sec"), 2)}</td>
               <td>{fmt(row.get("runtime_per_frame_sec"), 4)}</td>
@@ -458,8 +471,12 @@ def sequence_results_table(df: pd.DataFrame) -> str:
               <th>Difficulty</th>
               <th>Method</th>
               <th>Status</th>
-              <th>APE RMSE (m)</th>
-              <th>RPE RMSE (m)</th>
+              <th>APE Sim(3) RMSE (m)</th>
+              <th>RPE Sim(3) RMSE (m)</th>
+              <th>APE Sim(3) explicit (m)</th>
+              <th>RPE Sim(3) explicit (m)</th>
+              <th>APE SE(3) RMSE (m)</th>
+              <th>RPE SE(3) RMSE (m)</th>
               <th>APE (% path)</th>
               <th>Runtime (s)</th>
               <th>Runtime/frame (s)</th>
